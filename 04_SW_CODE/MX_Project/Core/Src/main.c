@@ -97,9 +97,9 @@ int main(void)
   Lcd_Init();
   /* USER CODE BEGIN 2 */
   Lcd_Set_Cursor(0, 0);
-  Lcd_Write_Char("HELLO WORLD");
+  Lcd_Write_String("HELLO WORLD");
   Lcd_Set_Cursor(1, 0);
-  Lcd_Write_Char("from CTECH");
+  Lcd_Write_String("from CESI");
 
   /* USER CODE END 2 */
 

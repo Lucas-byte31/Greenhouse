@@ -1,93 +1,95 @@
-/*
- * lcd.h
- *
- *  Created on: Nov 14, 2025
- *      Author: basti
- */
+#include "stm32g0xx_hal.h"
 
+// Définition des broches LCD
+#define RS_PIN GPIO_PIN_6
+#define EN_PIN GPIO_PIN_7
+#define D4_PIN GPIO_PIN_1
+#define D5_PIN GPIO_PIN_0
+#define D6_PIN GPIO_PIN_2
+#define D7_PIN GPIO_PIN_8
+#define LCD_PORT GPIOB // Toutes les broches sont sur GPIOB
 
-
-/* Definir les broches de contr�le de l'�cran LCD*/
-#define RS PB6
-#define EN PB7
-#define D4 PB1
-#define D5 PB0
-#define D6 PB2
-#define D7 PB8
-/* Fonctions de delai*/
-void Lcd_Delay(unsigned int time) {
-    while(time--);
+// Fonction de délai (remplace le while(time--) par HAL_Delay)
+void Lcd_Delay(uint32_t time_us) {
+    HAL_Delay(time_us / 1000); // Convertit en millisecondes
 }
 
-void Lcd_Cmd(char cmd) {
-    RS = 0; // Mode commande
-    D7 = (cmd >> 3) & 1;
-    D6 = (cmd >> 2) & 1;
-    D5 = (cmd >> 1) & 1;
-    D4 = cmd & 1;
-    EN = 1;
+// Écriture des 4 bits sur les broches D4 à D7
+void Lcd_Set_Data(uint8_t data) {
+    HAL_GPIO_WritePin(LCD_PORT, D4_PIN, (data >> 0) & 0x01);
+    HAL_GPIO_WritePin(LCD_PORT, D5_PIN, (data >> 1) & 0x01);
+    HAL_GPIO_WritePin(LCD_PORT, D6_PIN, (data >> 2) & 0x01);
+    HAL_GPIO_WritePin(LCD_PORT, D7_PIN, (data >> 3) & 0x01);
+}
+
+// Envoi d'une commande à l'écran
+void Lcd_Cmd(uint8_t cmd) {
+    HAL_GPIO_WritePin(LCD_PORT, RS_PIN, GPIO_PIN_RESET); // RS = 0 (commande)
+    Lcd_Set_Data(cmd);
+    HAL_GPIO_WritePin(LCD_PORT, EN_PIN, GPIO_PIN_SET);
     Lcd_Delay(500);
-    EN = 0;
+    HAL_GPIO_WritePin(LCD_PORT, EN_PIN, GPIO_PIN_RESET);
 }
 
+// Envoi d'un caractère à afficher
 void Lcd_Write_Char(char data) {
-    RS = 1; // Mode donn�es
-    D7 = (data >> 3) & 1;
-    D6 = (data >> 2) & 1;
-    D5 = (data >> 1) & 1;
-    D4 = data & 1;
-    EN = 1;
+    HAL_GPIO_WritePin(LCD_PORT, RS_PIN, GPIO_PIN_SET); // RS = 1 (donnée)
+    Lcd_Set_Data(data);
+    HAL_GPIO_WritePin(LCD_PORT, EN_PIN, GPIO_PIN_SET);
     Lcd_Delay(500);
-    EN = 0;
+    HAL_GPIO_WritePin(LCD_PORT, EN_PIN, GPIO_PIN_RESET);
 }
 
+// Affichage d'une chaîne de caractères
 void Lcd_Write_String(char *str) {
-    while(*str) {
+    while (*str) {
         Lcd_Write_Char(*str++);
     }
 }
 
-void Lcd_Set_Cursor(char row, char column) {
-    char temp, low4, high4;
-    if(row == 1) {
-        temp = 0x80 + column - 1;
-        high4 = temp >> 4;
-        low4 = temp & 0x0F;
-        Lcd_Cmd(high4);
-        Lcd_Cmd(low4);
-    } else if(row == 2) {
-        temp = 0xC0 + column - 1;
-        high4 = temp >> 4;
-        low4 = temp & 0x0F;
-        Lcd_Cmd(high4);
-        Lcd_Cmd(low4);
+// Positionnement du curseur
+void Lcd_Set_Cursor(uint8_t row, uint8_t column) {
+    uint8_t address;
+
+    if (row == 1) {
+        address = 0x80 + (column - 1); // Ligne 1
+    } else if (row == 2) {
+        address = 0xC0 + (column - 1); // Ligne 2
+    } else {
+        return; // Ligne invalide
     }
+
+    // Envoie l'adresse en deux parties (mode 4 bits)
+    Lcd_Cmd(address >> 4);     // Partie haute
+    Lcd_Cmd(address & 0x0F);   // Partie basse
 }
 
+
+// Effacement de l'écran
 void Lcd_Clear(void) {
     Lcd_Cmd(0x01);
 }
 
+// Initialisation de l'écran LCD
 void Lcd_Init(void) {
-    D4 = D5 = D6 = D7 = 0;
-    __delay_ms(20);
+	HAL_GPIO_WritePin(GPIOB, D4_PIN, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, D5_PIN, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, D6_PIN, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, D7_PIN, GPIO_PIN_RESET);
+
+    HAL_Delay(20);
     Lcd_Cmd(0x03);
-    __delay_ms(5);
+    HAL_Delay(5);
     Lcd_Cmd(0x03);
-    __delay_ms(11);
+    HAL_Delay(11);
     Lcd_Cmd(0x03);
-    Lcd_Cmd(0x02);
-    Lcd_Cmd(0x02);
-    Lcd_Cmd(0x08);
+    Lcd_Cmd(0x02); // Mode 4 bits
+
+    // Configuration de l'affichage
+    Lcd_Cmd(0x02); // 4 bits
+    Lcd_Cmd(0x08); // 2 lignes, 5x8 points
     Lcd_Cmd(0x00);
-    Lcd_Cmd(0x0C);
+    Lcd_Cmd(0x0C); // Affichage ON, curseur OFF
     Lcd_Cmd(0x00);
-    Lcd_Cmd(0x06);
+    Lcd_Cmd(0x06); // Incrément automatique
 }
-
-#ifndef INC_LCD_H_
-#define INC_LCD_H_
-
-
-
-#endif /* INC_LCD_H_ */
