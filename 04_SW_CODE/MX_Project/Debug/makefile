@@ -60,8 +60,8 @@ all: main-build
 main-build: MX_Project.elf secondary-outputs
 
 # Tool invocations
-MX_Project.elf MX_Project.map: $(OBJS) $(USER_OBJS) C:\Users\basti\Documents\CGE\A2\Microcontroleur\Greenhouse\04_SW_CODE\MX_Project\STM32G031K8TX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "MX_Project.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m0plus -T"C:\Users\basti\Documents\CGE\A2\Microcontroleur\Greenhouse\04_SW_CODE\MX_Project\STM32G031K8TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="MX_Project.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+MX_Project.elf MX_Project.map: $(OBJS) $(USER_OBJS) C:\Users\lucas\Documents\Ecole\2nde_Annee\1-Microcontroleur\Greenhouse\04_SW_CODE\MX_Project\STM32G031K8TX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "MX_Project.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m0plus -T"C:\Users\lucas\Documents\Ecole\2nde_Annee\1-Microcontroleur\Greenhouse\04_SW_CODE\MX_Project\STM32G031K8TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="MX_Project.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

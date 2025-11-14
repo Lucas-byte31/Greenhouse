@@ -18,11 +18,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "lcd.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "motor_driver.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "LCD.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -33,6 +36,9 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+/* Calibration humidite SEN0193 - base DFRobot adaptée en 12 bits */
+#define AIR_VALUE    2080    // ≈ sec (PA0), à ajuster
+#define WATER_VALUE  1040    // ≈ dans l'eau (PA0), à ajuster
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -56,6 +62,9 @@ static void MX_USART2_UART_Init(void);
 static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 static void LED_BLINK(int p_blink);
+float TMP235_linear(float voltage);
+float humidity_from_raw(uint32_t raw);
+uint32_t ReadADC_Channel(uint32_t channel);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -94,12 +103,17 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_ADC1_Init();
-  Lcd_Init();
   /* USER CODE BEGIN 2 */
   Lcd_Set_Cursor(0, 0);
   Lcd_Write_String("HELLO WORLD");
   Lcd_Set_Cursor(1, 0);
   Lcd_Write_String("from CESI");
+
+  // On initialise le moteur a OFF
+  Motor_Off();
+  
+  char buffert[80];
+  char bufferh[80];
 
   /* USER CODE END 2 */
 
@@ -107,29 +121,43 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	    // Lecture de l'état du bouton sur le pin PA09
-	    GPIO_PinState button0State = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_9);
+      /* ================== HUMIDITE sur PA0 = ADC1_IN0 ================== */
+      uint32_t raw_hum = ReadADC_Channel(ADC_CHANNEL_0);
+      float humidity = humidity_from_raw(raw_hum);
 
-	    // Lecture de l'état du bouton sur le pin PA10
-	    GPIO_PinState button1State = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10);
+      int h100 = (int)(humidity * 100.0f);
+      int h_int = h100 / 100;
+      int h_dec = abs(h100 % 100);
 
-	    if (button0State == GPIO_PIN_RESET && button1State == GPIO_PIN_SET)
-		{
-	  	LED_BLINK(500);
-		}
-	    else if (button0State == GPIO_PIN_SET && button1State == GPIO_PIN_RESET)
-		{
-		LED_BLINK(2000);
-		}
-	    else if (button0State == GPIO_PIN_RESET && button1State == GPIO_PIN_RESET)
-		{
-		LED_BLINK(5000);
-  	  	}else{
-		HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
-  	  	}
+      sprintf(bufferh,
+              "H: rawHum=%lu  Humidite=%d.%02d %%\r\n",
+              raw_hum, h_int, h_dec);
+      HAL_UART_Transmit(&huart2, (uint8_t*)bufferh, strlen(bufferh), HAL_MAX_DELAY);
 
-	    //Anti_bound
-	    HAL_Delay(50);
+      /* ============== TEMPERATURE sur PA1 = ADC1_IN1 (TMP235) ============== */
+      uint32_t raw_temp = ReadADC_Channel(ADC_CHANNEL_1);
+      float voltage_adc = (raw_temp * 3.3f) / 4095.0f;
+
+      /* Correction facteur 0.47 (ton hack pour retomber autour de 0.75 V) */
+      float voltage = voltage_adc * 0.47f;
+
+      float temperature = TMP235_linear(voltage);
+
+      int t100 = (int)(temperature * 100.0f);
+      int t_int = t100 / 100;
+      int t_dec = abs(t100 % 100);
+
+      sprintf(buffert,
+              "T: raw=%lu  Vadc=%.3f  Vcorr=%.3f  T=%d.%02d C\r\n",
+              raw_temp, voltage_adc, voltage, t_int, t_dec);
+      HAL_UART_Transmit(&huart2, (uint8_t*)buffert, strlen(buffert), HAL_MAX_DELAY);
+
+      HAL_Delay(2000);  
+
+
+	LED_BLINK(500);
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -291,8 +319,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3
-                          |GPIO_PIN_4|GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|MOTOR_IN1_Pin
+                          |MOTOR_IN2_Pin|GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
@@ -303,10 +331,16 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(T_NRST_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB0 PB1 PB2 PB3
-                           PB4 PB6 PB7 PB8 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3
-                          |GPIO_PIN_4|GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8;
+  /*Configure GPIO pins : PB2_Pin PB1_Pin PB3_Pin */
+  GPIO_InitStruct.Pin = PB2_Pin|PB1_Pin|PB3_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PB0 PB1 PB2 MOTOR_IN1_Pin
+                           MOTOR_IN2_Pin PB6 PB7 PB8 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|MOTOR_IN1_Pin
+                          |MOTOR_IN2_Pin|GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -325,6 +359,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD3_GPIO_Port, &GPIO_InitStruct);
 
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
+
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
   /* USER CODE END MX_GPIO_Init_2 */
@@ -336,8 +374,68 @@ void LED_BLINK(int p_blink)
 	int i_blinking = p_blink;
     HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);  // Change l'état de la LED
     HAL_Delay(i_blinking);   // attente
-
 }
+
+
+// Interruption via PB PA10
+void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin)
+{
+    if (GPIO_Pin == GPIO_PIN_11)
+    {
+        	// SI le moteur est allumé, on l'eteind
+            if (Motor_IsOn())
+            {
+                Motor_Off();
+            }
+            // SI le moteur est eteind, on l'allume
+            else
+            {
+                Motor_On();
+            }
+    }
+}
+
+/* Lecture d un canal ADC1 quelconque */
+uint32_t ReadADC_Channel(uint32_t channel)
+{
+    ADC_ChannelConfTypeDef sConfig = {0};
+
+    sConfig.Channel      = channel;
+    sConfig.Rank         = ADC_REGULAR_RANK_1;
+    sConfig.SamplingTime = ADC_SAMPLINGTIME_COMMON_1;
+
+    HAL_ADC_ConfigChannel(&hadc1, &sConfig);
+
+    HAL_ADC_Start(&hadc1);
+    HAL_ADC_PollForConversion(&hadc1, 100);
+
+    return HAL_ADC_GetValue(&hadc1);
+}
+
+/* TMP235: V -> degres C, d apres Table 3: T = 100*V - 50 */
+float TMP235_linear(float voltage)
+{
+    return 100.0f * voltage - 50.0f;
+}
+
+/* Humidite: raw ADC -> %RH, lineaire entre AIR_VALUE et WATER_VALUE */
+float humidity_from_raw(uint32_t raw)
+{
+    const float Air   = (float)AIR_VALUE;
+    const float Water = (float)WATER_VALUE;
+
+    const float a = 100.0f / (Water - Air);
+    const float b = -a * Air;
+
+    float H = a * (float)raw + b;
+
+    if (H < 0.0f)   H = 0.0f;
+    if (H > 100.0f) H = 100.0f;
+
+    return H;
+}
+
+
 /* USER CODE END 4 */
 
 /**
