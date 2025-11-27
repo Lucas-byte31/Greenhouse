@@ -24,7 +24,7 @@
 #include <motor_driver_fan.h>
 #include <motor_driver_pump.h>
 #include "capteurs.h"
-#include "LCD.h"
+#include "lcd.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -57,9 +57,7 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
-//Anti rebond
-static uint32_t last_interrupt_time = 0;
-#define DEBOUNCE_MS 200
+
 //Push button
 volatile bool PB1_pressed = false;   // Flag PB1
 volatile bool PB2_pressed = false;   // Flag PB2
@@ -122,16 +120,34 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-  Lcd_Set_Cursor(0, 0);
-  Lcd_Write_String("HELLO WORLD");
-  Lcd_Set_Cursor(1, 0);
-  Lcd_Write_String("from CESI");
+  //Lcd_Set_Cursor(0, 0);
+  //Lcd_Write_String("HELLO WORLD");
+  //Lcd_Set_Cursor(1, 0);
+  //Lcd_Write_String("from CESI");
 
   // On initialise le moteur a OFF
   Motor_Off();
   // On initialise la pompe a OFF
   Pump_Init(); // init de la pompe
   
+  //Init de la page du LCD
+  int Var_page = 1;
+
+  int seuil_temperature = 25;  // exemple
+  int seuil_humidite = 50;     // exemple
+
+  // Initialisation LCD
+  lcd_init();
+  lcd_clear();
+
+  // Affichage
+  lcd_position_cursor(0,0);
+  lcd_show_txt("HELLO WORLD");
+
+  lcd_position_cursor(0,1);
+  lcd_show_txt("STM32G031U");
+
+
   char buffert[80];
   char bufferh[80];
 
@@ -141,6 +157,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
 
 	  /* ================== HUMIDITE sur PA0 = ADC1_IN0 ================== */
 
@@ -171,8 +188,26 @@ int main(void)
 	      HAL_UART_Transmit(&huart2, (uint8_t*)buffert, strlen(buffert), HAL_MAX_DELAY);
 
 
+	     /* // ===================== Ventilateur Automatique=====================
+	      if (temperature >= 30.0)
+	      {
+	              Motor_On();
+	              HAL_Delay(2000);
+	      } else {
+	    	  	  Motor_Off();
+	      }
+
+	      // ===================== Pompe Automatique=====================
+	      if (humidity <=10.0)
+	      {
+	    	  	  Pump_SetSpeed(100);
+	      } else {
+	    	  	  Pump_Stop();
+	      }*/
+
+
 	        //----------------------------------CODE DE LUCAS!!!-----------------------------------//
-      // ===================== Ventilateur =====================
+    /*  // ===================== Ventilateur Manuel=====================
       if (PB1_pressed)
       {
           PB1_pressed = false;   // On remet PB à false
@@ -182,7 +217,7 @@ int main(void)
               Motor_On();
       }
 
-      // ===================== Pompe =====================
+      // ===================== Pompe Manuelle=====================
       if (PB2_pressed)
       {
           PB2_pressed = false;   // On remet PB à false
@@ -191,9 +226,107 @@ int main(void)
           else
               Pump_SetSpeed(100);   // // si la pompe est éteinte on l'allume à x% PWM
       }
+*/
+
+	      /* Changement de page si PB1 appuyé */
+	      if (PB1_pressed)
+	      {
+	          PB1_pressed = false;       // on consomme l'événement
+
+	          Var_page++;
+	          if (Var_page > 4)
+	              Var_page = 1;          // retour à la page 1
+	      }
+
+	      /* Rafraîchissement écran LCD suivant Var_page */
+	      lcd_clear();
+
+	      switch (Var_page)
+	         {
+	             case 1:
+	                 // -------- PAGE 1 --------
+	                 // Temperature     x°C
+	                 // Humidite        x%
+
+	            	 lcd_position_cursor(0, 0);
+	                 char line1[16];
+	                 sprintf(line1, "Temp: %dC", t_int);   // t_int : valeur déjà calculée
+	                 lcd_show_txt(line1);
+
+	                 lcd_position_cursor(0, 1);
+	                 char line2[16];
+	                 sprintf(line2, "Hum: %d%%", h_int);   // h_int : valeur humidité
+	                 lcd_show_txt(line2);
+	                 break;
+
+	             case 2:
+	                 // -------- PAGE 2 --------
+	                 // Temperature     x°C
+	                 // Seuil           x°C
+
+	            	 lcd_position_cursor(0, 0);
+	                 sprintf(line1, "Temp: %dC", t_int);
+	                 lcd_show_txt(line1);
+
+	                 lcd_position_cursor(0, 1);
+	                 sprintf(line2, "Seuil: %dC", seuil_temperature);
+	                 lcd_show_txt(line2);
+	                 break;
+
+	             case 3:
+	                 // -------- PAGE 3 --------
+	                 // Humidite        x%
+	                 // Seuil           x%
+
+	            	 lcd_position_cursor(0, 0);
+	                 sprintf(line1, "Hum: %d%%", h_int);
+	                 lcd_show_txt(line1);
+
+	                 lcd_position_cursor(0, 1);
+	                 sprintf(line2, "Seuil: %d%%", seuil_humidite);
+	                 lcd_show_txt(line2);
+	                 break;
+
+	             case 4:
+	                 // -------- PAGE 4 --------
+	                 // Pompe       ON/OFF
+	                 // Ventilateur ON/OFF
+
+		           // ===================== Ventilateur Manuel=====================
+		            if (PB2_pressed)
+		            {
+		               PB2_pressed = false;   // On remet PB à false
+		                if (Motor_IsOn()) // si le moteur est déjà allumé on l'éteind
+		                    Motor_Off();
+		                else				// si le moteur est éteind on l'allume
+		                    Motor_On();
+		            }
+
+		            // ===================== Pompe Manuelle=====================
+		            if (PB3_pressed)
+		            {
+		                PB3_pressed = false;   // On remet PB à false
+		                if (Pump_IsOn())		// si la pompe est déjà allumé on l'éteind
+		                    Pump_Stop();
+		                else
+		                    Pump_SetSpeed(100);   // // si la pompe est éteinte on l'allume à x% PWM
+		            }
+
+	            	 lcd_position_cursor(0, 0);
+	                 sprintf(line1, "Pompe: %s", Pump_IsOn() ? "ON" : "OFF");
+	                 lcd_show_txt(line1);
+
+	                 lcd_position_cursor(0, 1);
+	                 sprintf(line2, "Ventil: %s", Motor_IsOn() ? "ON" : "OFF");
+	                 lcd_show_txt(line2);
+
+	                 break;
+	         }
+
+	         HAL_Delay(1500);  // petit délai pour éviter de rafraîchir trop souvent
 
       // ===================== LED =====================
-      LED_BLINK(500);
+      //LED_BLINK(500);
 	  
 	  	      //HAL_Delay(2000);
 

@@ -35,7 +35,7 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Drivers/STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal_uart.h \
  ../Drivers/STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal_uart_ex.h \
  ../Core/Inc/motor_driver_fan.h ../Core/Inc/main.h \
- ../Core/Inc/motor_driver_pump.h ../Core/Inc/capteurs.h ../Core/Inc/LCD.h
+ ../Core/Inc/motor_driver_pump.h ../Core/Inc/capteurs.h ../Core/Inc/lcd.h
 ../Core/Inc/main.h:
 ../Drivers/STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal.h:
 ../Core/Inc/stm32g0xx_hal_conf.h:
@@ -76,4 +76,4 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Core/Inc/main.h:
 ../Core/Inc/motor_driver_pump.h:
 ../Core/Inc/capteurs.h:
-../Core/Inc/LCD.h:
+../Core/Inc/lcd.h:

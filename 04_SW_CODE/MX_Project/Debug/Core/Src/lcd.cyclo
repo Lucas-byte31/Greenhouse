@@ -1,0 +1,10 @@
+../Core/Src/lcd.c:14:13:lcd_send_pulse	1
+../Core/Src/lcd.c:23:13:lcd_send_nibble	1
+../Core/Src/lcd.c:34:13:lcd_send_octet	1
+../Core/Src/lcd.c:47:6:lcd_send_commande	1
+../Core/Src/lcd.c:54:6:lcd_clear	1
+../Core/Src/lcd.c:61:6:lcd_init	1
+../Core/Src/lcd.c:78:6:lcd_show_carac	1
+../Core/Src/lcd.c:84:6:lcd_show_txt	2
+../Core/Src/lcd.c:93:6:LCD_PrintFloat	1
+../Core/Src/lcd.c:103:6:lcd_position_cursor	1
