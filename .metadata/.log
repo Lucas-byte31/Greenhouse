@@ -1,0 +1,19 @@
+!SESSION 2025-11-27 08:39:56.144 -----------------------------------------------
+eclipse.buildId=Version 1.19.0
+java.version=21.0.3
+java.vendor=Eclipse Adoptium
+BootLoader constants: OS=win32, ARCH=x86_64, WS=win32, NL=fr_FR
+Framework arguments:  C:\Users\paule\OneDrive\Documents\5_CESI\Micro controleur\Greenhouse\04_SW_CODE\MX_Project\.project
+Command-line arguments:  -os win32 -ws win32 -arch x86_64 C:\Users\paule\OneDrive\Documents\5_CESI\Micro controleur\Greenhouse\04_SW_CODE\MX_Project\.project
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 4 4 2025-11-27 08:40:15.842
+!MESSAGE CubeMX plugin appears to be active, Log4j initialization might be too late.
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 1 1 2025-11-27 08:40:15.844
+!MESSAGE Log4j2 initialized with config file C:\Users\paule\OneDrive\Documents\5_CESI\Micro controleur\Greenhouse\.metadata\.log4j2.xml
+
+!ENTRY com.st.stm32cube.ide.mcu.ide 1 1 2025-11-27 08:40:19.150
+!MESSAGE Started RMI Server, listening on port 41337
+
+!ENTRY org.eclipse.cdt.core 1 0 2025-11-27 08:40:23.987
+!MESSAGE Indexed 'MX_Project' (25 sources, 117 headers) in 2,79 sec: 10 837 declarations; 48 261 references; 10 unresolved inclusions; 1 393 syntax errors; 1 648 unresolved names (2,7 %)
