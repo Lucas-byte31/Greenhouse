@@ -1,0 +1,2 @@
+../Core/Src/capteurs.c:10:7:CAPTEURS_ComputeTemperature	40	static
+../Core/Src/capteurs.c:26:7:CAPTEURS_ComputeHumidity	48	static

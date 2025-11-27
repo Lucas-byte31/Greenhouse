@@ -1,3 +1,0 @@
-../Core/Src/motor_driver.c:16:6:Motor_On	1
-../Core/Src/motor_driver.c:24:6:Motor_Off	1
-../Core/Src/motor_driver.c:33:9:Motor_IsOn	1

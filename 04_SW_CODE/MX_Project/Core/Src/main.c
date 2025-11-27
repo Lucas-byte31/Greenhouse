@@ -21,11 +21,13 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "motor_driver.h"
+#include <motor_driver_fan.h>
+#include <motor_driver_pump.h>
+#include "capteurs.h"
+#include "LCD.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "LCD.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -37,8 +39,7 @@
 /* USER CODE BEGIN PD */
 
 /* Calibration humidite SEN0193 - base DFRobot adaptée en 12 bits */
-#define AIR_VALUE    2080    // ≈ sec (PA0),
-#define WATER_VALUE  1040    // ≈ dans l'eau (PA0),
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -49,22 +50,38 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 
+TIM_HandleTypeDef htim3;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
-
+//Anti rebond
+static uint32_t last_interrupt_time = 0;
+#define DEBOUNCE_MS 200
+//Push button
+volatile bool PB1_pressed = false;   // Flag PB1
+volatile bool PB2_pressed = false;   // Flag PB2
+volatile bool PB3_pressed = false;   // Flag PB3
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 static void LED_BLINK(int p_blink);
 float TMP235_linear(float voltage);
 float humidity_from_raw(uint32_t raw);
 uint32_t ReadADC_Channel(uint32_t channel);
+
+
+#define V_REF      3.3f		 // Vref 3.3V
+#define V_OFFSET   0.130f    // ton offset mesure a 0V
+
+#define AIR_VALUE   2675.0f  // mesure en air sec
+#define WATER_VALUE 1780.0f  // mesure dans l'eau
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -103,6 +120,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_ADC1_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   Lcd_Set_Cursor(0, 0);
   Lcd_Write_String("HELLO WORLD");
@@ -111,6 +129,8 @@ int main(void)
 
   // On initialise le moteur a OFF
   Motor_Off();
+  // On initialise la pompe a OFF
+  Pump_Init(); // init de la pompe
   
   char buffert[80];
   char bufferh[80];
@@ -123,33 +143,62 @@ int main(void)
   {
 
 	  /* ================== HUMIDITE sur PA0 = ADC1_IN0 ================== */
-	        uint32_t raw_hum = ReadADC_Channel(ADC_CHANNEL_0);
-	        float humidity = humidity_from_raw(raw_hum);
 
-	        int h100 = (int)(humidity * 100.0f);
-	        int h_int = h100 / 100;
-	        int h_dec = abs(h100 % 100);
+	      uint32_t raw_hum = ReadADC_Channel(ADC_CHANNEL_0);
+	      float humidity = CAPTEURS_ComputeHumidity(raw_hum, AIR_VALUE, WATER_VALUE);
 
-	        sprintf(bufferh,
-	                "H: rawHum=%lu  Humidite=%d.%02d %%\r\n",raw_hum, h_int, h_dec);HAL_UART_Transmit(&huart2, (uint8_t*)bufferh, strlen(bufferh), HAL_MAX_DELAY);
+	      int h100 = (int)(humidity * 100.0f);
+	      int h_int = h100 / 100;
+	      int h_dec = abs(h100 % 100);
 
-	        /* ============== TEMPERATURE sur PA1 = ADC1_IN1 (TMP235) ============== */
-	        uint32_t raw_temp = ReadADC_Channel(ADC_CHANNEL_1);
-	        float voltage_adc = (raw_temp * 3.3f) / 4095.0f;
+	      sprintf(bufferh,
+	              "H: rawHum=%lu  Humidite=%d.%02d %%\r\n",
+	              raw_hum, h_int, h_dec);
+	      HAL_UART_Transmit(&huart2, (uint8_t*)bufferh, strlen(bufferh), HAL_MAX_DELAY);
 
-	        /* Correction facteur 0.47 (ton hack pour retomber autour de 0.75 V) */
-	        float voltage = voltage_adc * 0.47f;
+	      /* ============== TEMPERATURE sur PA1 = ADC1_IN1 (TMP235) ============== */
 
-	        float temperature = TMP235_linear(voltage);
+	      uint32_t raw_temp = ReadADC_Channel(ADC_CHANNEL_1);
+	      float temperature = CAPTEURS_ComputeTemperature(raw_temp, V_REF, V_OFFSET);
 
-	        int t100 = (int)(temperature * 100.0f);
-	        int t_int = t100 / 100;
-	        int t_dec = abs(t100 % 100);
+	      int t100 = (int)(temperature * 100.0f);
+	      int t_int = t100 / 100;
+	      int t_dec = abs(t100 % 100);
 
-	        sprintf(buffert,"T: raw=%lu  Vadc=%.3f  Vcorr=%.3f  T=%d.%02d C\r\n",raw_temp, voltage_adc, voltage, t_int, t_dec);
-	        HAL_UART_Transmit(&huart2, (uint8_t*)buffert, strlen(buffert), HAL_MAX_DELAY);
+	      sprintf(buffert,
+	              "T: raw=%lu  T=%d.%02d C\r\n",
+	              raw_temp, t_int, t_dec);
+	      HAL_UART_Transmit(&huart2, (uint8_t*)buffert, strlen(buffert), HAL_MAX_DELAY);
 
 
+	        //----------------------------------CODE DE LUCAS!!!-----------------------------------//
+      // ===================== Ventilateur =====================
+      if (PB1_pressed)
+      {
+          PB1_pressed = false;   // On remet PB à false
+          if (Motor_IsOn()) // si le moteur est déjà allumé on l'éteind
+              Motor_Off();
+          else				// si le moteur est éteind on l'allume
+              Motor_On();
+      }
+
+      // ===================== Pompe =====================
+      if (PB2_pressed)
+      {
+          PB2_pressed = false;   // On remet PB à false
+          if (Pump_IsOn())		// si la pompe est déjà allumé on l'éteind
+              Pump_Stop();
+          else
+              Pump_SetSpeed(100);   // // si la pompe est éteinte on l'allume à x% PWM
+      }
+
+      // ===================== LED =====================
+      LED_BLINK(500);
+	  
+	  	      //HAL_Delay(2000);
+
+
+	        //----------------------------------CODE DE LUCAS!!!-----------------------------------//
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -257,6 +306,65 @@ static void MX_ADC1_Init(void)
 }
 
 /**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 0;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 799;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+  HAL_TIM_MspPostInit(&htim3);
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -273,7 +381,7 @@ static void MX_USART2_UART_Init(void)
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
   huart2.Init.BaudRate = 115200;
-  huart2.Init.WordLength = UART_WORDLENGTH_7B;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
   huart2.Init.Mode = UART_MODE_TX_RX;
@@ -305,17 +413,29 @@ static void MX_GPIO_Init(void)
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|MOTOR_IN1_Pin
-                          |MOTOR_IN2_Pin|GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_POMPE_Pin|GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2
+                          |MOTOR_IN1_Pin|MOTOR_IN2_Pin|GPIO_PIN_6|GPIO_PIN_7
+                          |GPIO_PIN_8, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : GPIO_POMPE_Pin PB0 PB1 PB2
+                           MOTOR_IN1_Pin MOTOR_IN2_Pin PB6 PB7
+                           PB8 */
+  GPIO_InitStruct.Pin = GPIO_POMPE_Pin|GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2
+                          |MOTOR_IN1_Pin|MOTOR_IN2_Pin|GPIO_PIN_6|GPIO_PIN_7
+                          |GPIO_PIN_8;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : T_NRST_Pin */
   GPIO_InitStruct.Pin = T_NRST_Pin;
@@ -323,20 +443,11 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(T_NRST_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB2_Pin PB1_Pin PB3_Pin */
-  GPIO_InitStruct.Pin = PB2_Pin|PB1_Pin|PB3_Pin;
+  /*Configure GPIO pins : PUSH_BUTTON2_Pin PUSH_BUTTON1_Pin PUSH_BUTTON3_Pin */
+  GPIO_InitStruct.Pin = PUSH_BUTTON2_Pin|PUSH_BUTTON1_Pin|PUSH_BUTTON3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : PB0 PB1 PB2 MOTOR_IN1_Pin
-                           MOTOR_IN2_Pin PB6 PB7 PB8 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|MOTOR_IN1_Pin
-                          |MOTOR_IN2_Pin|GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PA8 PA9 PA10 */
   GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10;
@@ -369,21 +480,28 @@ void LED_BLINK(int p_blink)
 }
 
 
-// Interruption via PB PA10
+// Interruption
 void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin)
 {
-    if (GPIO_Pin == GPIO_PIN_11)
+    // Anti-rebond simple
+    static uint32_t last_interrupt_time = 0;
+    uint32_t now = HAL_GetTick();
+    if (now - last_interrupt_time < 200) return;  // 200 ms debounce
+    last_interrupt_time = now;
+
+    if (GPIO_Pin == PUSH_BUTTON1_Pin)
     {
-        	// SI le moteur est allumé, on l'eteind
-            if (Motor_IsOn())
-            {
-                Motor_Off();
-            }
-            // SI le moteur est eteind, on l'allume
-            else
-            {
-                Motor_On();
-            }
+        PB1_pressed = true;   // Flag PB1
+    }
+
+    if (GPIO_Pin == PUSH_BUTTON2_Pin)
+    {
+        PB2_pressed = true;   // Flag PB2
+    }
+
+    if (GPIO_Pin == PUSH_BUTTON3_Pin)
+    {
+        PB3_pressed = true;   // Flag PB3
     }
 }
 
@@ -404,28 +522,8 @@ uint32_t ReadADC_Channel(uint32_t channel)
     return HAL_ADC_GetValue(&hadc1);
 }
 
-/* TMP235: V -> degres C, d apres Table 3: T = 100*V - 50 */
-float TMP235_linear(float voltage)
-{
-    return 100.0f * voltage - 50.0f;
-}
 
-/* Humidite: raw ADC -> %RH, lineaire entre AIR_VALUE et WATER_VALUE */
-float humidity_from_raw(uint32_t raw)
-{
-    const float Air   = (float)AIR_VALUE;
-    const float Water = (float)WATER_VALUE;
 
-    const float a = 100.0f / (Water - Air);
-    const float b = -a * Air;
-
-    float H = a * (float)raw + b;
-
-    if (H < 0.0f)   H = 0.0f;
-    if (H > 100.0f) H = 100.0f;
-
-    return H;
-}
 
 
 /* USER CODE END 4 */

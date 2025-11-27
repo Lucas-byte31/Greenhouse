@@ -1,0 +1,2 @@
+../Core/Src/capteurs.c:10:7:CAPTEURS_ComputeTemperature	2
+../Core/Src/capteurs.c:26:7:CAPTEURS_ComputeHumidity	4

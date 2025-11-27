@@ -6,7 +6,7 @@
  */
 
 // Include de motor_driver
-#include "motor_driver.h"
+#include "motor_driver_fan.h"
 
 // Global data declaration et affectation
 // Etat du moteur: OFF =0 et ON =1

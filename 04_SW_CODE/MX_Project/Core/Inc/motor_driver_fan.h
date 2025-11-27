@@ -5,8 +5,8 @@
  *      Author: lucas
  */
 
-#ifndef INC_MOTOR_DRIVER_H_
-#define INC_MOTOR_DRIVER_H_
+#ifndef INC_MOTOR_DRIVER_FAN_H_
+#define INC_MOTOR_DRIVER_FAN_H_
 
 #include "main.h"
 
@@ -16,4 +16,4 @@ void Motor_Off(void);
 uint8_t Motor_IsOn(void);
 
 
-#endif /* INC_MOTOR_DRIVER_H_ */
+#endif /* INC_MOTOR_DRIVER_FAN_H_ */
