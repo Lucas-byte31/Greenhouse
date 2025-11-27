@@ -131,10 +131,10 @@ int main(void)
   Pump_Init(); // init de la pompe
   
   //Init de la page du LCD
-  int Var_page = 1;
+  static int Var_page = 1;
 
-  int seuil_temperature = 25;  // exemple
-  int seuil_humidite = 50;     // exemple
+  static int seuil_temperature = 25;  // exemple
+  static int seuil_humidite = 50;     // exemple
 
   // Initialisation LCD
   lcd_init();
@@ -257,6 +257,7 @@ int main(void)
 	                 char line2[16];
 	                 sprintf(line2, "Hum: %d%%", h_int);   // h_int : valeur humidité
 	                 lcd_show_txt(line2);
+
 	                 break;
 
 	             case 2:
@@ -271,6 +272,16 @@ int main(void)
 	                 lcd_position_cursor(0, 1);
 	                 sprintf(line2, "Seuil: %dC", seuil_temperature);
 	                 lcd_show_txt(line2);
+	                 if (PB2_pressed && !PB3_pressed )
+	                	 {
+	                	   PB2_pressed = false;       // on consomme l'événement
+	                	   seuil_temperature++;         // retour à la page 1
+	                	 }
+	                 if (PB3_pressed && !PB2_pressed )
+	                     {
+	                	   PB3_pressed = false;       // on consomme l'événement
+	                	   seuil_temperature--;         // retour à la page 1
+	                	  }
 	                 break;
 
 	             case 3:
@@ -285,6 +296,16 @@ int main(void)
 	                 lcd_position_cursor(0, 1);
 	                 sprintf(line2, "Seuil: %d%%", seuil_humidite);
 	                 lcd_show_txt(line2);
+	                 if (PB2_pressed && !PB3_pressed )
+	                	 {
+	                	   PB2_pressed = false;       // on consomme l'événement
+	                	   seuil_humidite++;         // retour à la page 1
+	                	 }
+	                 if (PB3_pressed && !PB2_pressed )
+	                     {
+	                	   PB3_pressed = false;       // on consomme l'événement
+	                	   seuil_humidite--;         // retour à la page 1
+	                	  }
 	                 break;
 
 	             case 4:
