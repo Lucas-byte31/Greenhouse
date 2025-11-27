@@ -133,8 +133,8 @@ int main(void)
   //Init de la page du LCD
   static int Var_page = 1;
 
-  static int seuil_temperature = 25;  // exemple
-  static int seuil_humidite = 50;     // exemple
+  static float seuil_temperature = 25.0f;  // exemple
+  static float seuil_humidite = 10.0f;     // exemple
 
   // Initialisation LCD
   lcd_init();
@@ -188,22 +188,25 @@ int main(void)
 	      HAL_UART_Transmit(&huart2, (uint8_t*)buffert, strlen(buffert), HAL_MAX_DELAY);
 
 
-	     /* // ===================== Ventilateur Automatique=====================
-	      if (temperature >= 30.0)
+	      // ===================== Ventilateur Automatique=====================
+	      if (Var_page != 4)
 	      {
+	    	  if (temperature >= seuil_temperature)
+	    	  {
 	              Motor_On();
 	              HAL_Delay(2000);
-	      } else {
+	    	  } else {
 	    	  	  Motor_Off();
-	      }
+	    	  }
 
 	      // ===================== Pompe Automatique=====================
-	      if (humidity <=10.0)
-	      {
+	    	  if (humidity <=seuil_humidite)
+	    	  {
 	    	  	  Pump_SetSpeed(100);
-	      } else {
+	    	  } else {
 	    	  	  Pump_Stop();
-	      }*/
+	    	  }
+	      }
 
 
 	        //----------------------------------CODE DE LUCAS!!!-----------------------------------//
@@ -265,23 +268,26 @@ int main(void)
 	                 // Temperature     x°C
 	                 // Seuil           x°C
 
+
+	                 if (PB2_pressed && !PB3_pressed )
+	                	 {
+	                	   PB2_pressed = false;       // on consomme l'événement
+	                	   seuil_temperature  += 1.0f ;         // retour à la page 1
+	                	 }
+	                 if (PB3_pressed && !PB2_pressed )
+	                     {
+	                	   PB3_pressed = false;       // on consomme l'événement
+	                	   seuil_temperature -= 1.0f;         // retour à la page 1
+	                	  }
+
+
 	            	 lcd_position_cursor(0, 0);
 	                 sprintf(line1, "Temp: %dC", t_int);
 	                 lcd_show_txt(line1);
 
 	                 lcd_position_cursor(0, 1);
-	                 sprintf(line2, "Seuil: %dC", seuil_temperature);
+	                 sprintf(line2, "Seuil: %.1fC", seuil_temperature);
 	                 lcd_show_txt(line2);
-	                 if (PB2_pressed && !PB3_pressed )
-	                	 {
-	                	   PB2_pressed = false;       // on consomme l'événement
-	                	   seuil_temperature++;         // retour à la page 1
-	                	 }
-	                 if (PB3_pressed && !PB2_pressed )
-	                     {
-	                	   PB3_pressed = false;       // on consomme l'événement
-	                	   seuil_temperature--;         // retour à la page 1
-	                	  }
 	                 break;
 
 	             case 3:
@@ -289,23 +295,25 @@ int main(void)
 	                 // Humidite        x%
 	                 // Seuil           x%
 
+	            if (PB2_pressed && !PB3_pressed )
+	             {
+	               PB2_pressed = false;       // on consomme l'événement
+	               seuil_humidite += 1.0f;         // retour à la page 1
+	             }
+	            if (PB3_pressed && !PB2_pressed )
+	                {
+	               PB3_pressed = false;       // on consomme l'événement
+	              seuil_humidite -= 1.0f;         // retour à la page 1
+	             }
+
 	            	 lcd_position_cursor(0, 0);
 	                 sprintf(line1, "Hum: %d%%", h_int);
 	                 lcd_show_txt(line1);
 
 	                 lcd_position_cursor(0, 1);
-	                 sprintf(line2, "Seuil: %d%%", seuil_humidite);
+	                 sprintf(line2, "Seuil: %.1f%%", seuil_humidite);
 	                 lcd_show_txt(line2);
-	                 if (PB2_pressed && !PB3_pressed )
-	                	 {
-	                	   PB2_pressed = false;       // on consomme l'événement
-	                	   seuil_humidite++;         // retour à la page 1
-	                	 }
-	                 if (PB3_pressed && !PB2_pressed )
-	                     {
-	                	   PB3_pressed = false;       // on consomme l'événement
-	                	   seuil_humidite--;         // retour à la page 1
-	                	  }
+
 	                 break;
 
 	             case 4:
