@@ -20,6 +20,7 @@ void ACQHumidity (void)
               "H: rawHum=%lu  Humidite=%d.%02d %%\r\n",
               raw_hum, h_int, h_dec);
       HAL_UART_Transmit(&huart2, (uint8_t*)bufferh, strlen(bufferh), HAL_MAX_DELAY);
+
 }
 
 void ACQTemperature (void)
@@ -37,9 +38,7 @@ void ACQTemperature (void)
       int t_int = t100 / 100;
       int t_dec = abs(t100 % 100);
 
-      sprintf(buffert,
-              "T: raw=%lu  Vadc=%.3f  Vcorr=%.3f  T=%d.%02d C\r\n",
-              raw_temp, voltage_adc, voltage, t_int, t_dec);
+      sprintf(buffert,"T: raw=%lu  Vadc=%.3f  Vcorr=%.3f  T=%d.%02d C\r\n",raw_temp, voltage_adc, voltage, t_int, t_dec);
       HAL_UART_Transmit(&huart2, (uint8_t*)buffert, strlen(buffert), HAL_MAX_DELAY);
-      HAL_Delay(2000);
+
 }
