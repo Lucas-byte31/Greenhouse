@@ -37,8 +37,8 @@
 /* USER CODE BEGIN PD */
 
 /* Calibration humidite SEN0193 - base DFRobot adaptée en 12 bits */
-#define AIR_VALUE    2080    // ≈ sec (PA0), à ajuster
-#define WATER_VALUE  1040    // ≈ dans l'eau (PA0), à ajuster
+#define AIR_VALUE    2080    // ≈ sec (PA0),
+#define WATER_VALUE  1040    // ≈ dans l'eau (PA0),
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -121,41 +121,33 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-      /* ================== HUMIDITE sur PA0 = ADC1_IN0 ================== */
-      uint32_t raw_hum = ReadADC_Channel(ADC_CHANNEL_0);
-      float humidity = humidity_from_raw(raw_hum);
 
-      int h100 = (int)(humidity * 100.0f);
-      int h_int = h100 / 100;
-      int h_dec = abs(h100 % 100);
+	  /* ================== HUMIDITE sur PA0 = ADC1_IN0 ================== */
+	        uint32_t raw_hum = ReadADC_Channel(ADC_CHANNEL_0);
+	        float humidity = humidity_from_raw(raw_hum);
 
-      sprintf(bufferh,
-              "H: rawHum=%lu  Humidite=%d.%02d %%\r\n",
-              raw_hum, h_int, h_dec);
-      HAL_UART_Transmit(&huart2, (uint8_t*)bufferh, strlen(bufferh), HAL_MAX_DELAY);
+	        int h100 = (int)(humidity * 100.0f);
+	        int h_int = h100 / 100;
+	        int h_dec = abs(h100 % 100);
 
-      /* ============== TEMPERATURE sur PA1 = ADC1_IN1 (TMP235) ============== */
-      uint32_t raw_temp = ReadADC_Channel(ADC_CHANNEL_1);
-      float voltage_adc = (raw_temp * 3.3f) / 4095.0f;
+	        sprintf(bufferh,
+	                "H: rawHum=%lu  Humidite=%d.%02d %%\r\n",raw_hum, h_int, h_dec);HAL_UART_Transmit(&huart2, (uint8_t*)bufferh, strlen(bufferh), HAL_MAX_DELAY);
 
-      /* Correction facteur 0.47 (ton hack pour retomber autour de 0.75 V) */
-      float voltage = voltage_adc * 0.47f;
+	        /* ============== TEMPERATURE sur PA1 = ADC1_IN1 (TMP235) ============== */
+	        uint32_t raw_temp = ReadADC_Channel(ADC_CHANNEL_1);
+	        float voltage_adc = (raw_temp * 3.3f) / 4095.0f;
 
-      float temperature = TMP235_linear(voltage);
+	        /* Correction facteur 0.47 (ton hack pour retomber autour de 0.75 V) */
+	        float voltage = voltage_adc * 0.47f;
 
-      int t100 = (int)(temperature * 100.0f);
-      int t_int = t100 / 100;
-      int t_dec = abs(t100 % 100);
+	        float temperature = TMP235_linear(voltage);
 
-      sprintf(buffert,
-              "T: raw=%lu  Vadc=%.3f  Vcorr=%.3f  T=%d.%02d C\r\n",
-              raw_temp, voltage_adc, voltage, t_int, t_dec);
-      HAL_UART_Transmit(&huart2, (uint8_t*)buffert, strlen(buffert), HAL_MAX_DELAY);
+	        int t100 = (int)(temperature * 100.0f);
+	        int t_int = t100 / 100;
+	        int t_dec = abs(t100 % 100);
 
-      HAL_Delay(2000);  
-
-
-	LED_BLINK(500);
+	        sprintf(buffert,"T: raw=%lu  Vadc=%.3f  Vcorr=%.3f  T=%d.%02d C\r\n",raw_temp, voltage_adc, voltage, t_int, t_dec);
+	        HAL_UART_Transmit(&huart2, (uint8_t*)buffert, strlen(buffert), HAL_MAX_DELAY);
 
 
     /* USER CODE END WHILE */
