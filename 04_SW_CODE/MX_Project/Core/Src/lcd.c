@@ -93,7 +93,7 @@ void lcd_show_txt(const char *str)
 void LCD_PrintFloat(float value, uint8_t col, uint8_t row, const char* label)
 {
     char buffer[20];
-    sprintf(buffer, "%s %.1f C", label, value);
+    snprintf(buffer, sizeof(buffer), "%s %.1f C", label, value);
     lcd_position_cursor(col, row);
     lcd_show_txt(buffer);
 }
@@ -104,4 +104,11 @@ void lcd_position_cursor(uint8_t col, uint8_t row)
 {
     uint8_t offsets[] = {0x00, 0x40};
     lcd_send_commande(0x80 | (col + offsets[row]));
+}
+
+// fonction inline pour afficher une ligne du LCD
+void lcd_print(uint8_t col, uint8_t row, const char *text)
+{
+    lcd_position_cursor(col, row);
+    lcd_show_txt(text);
 }

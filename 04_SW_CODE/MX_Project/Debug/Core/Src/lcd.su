@@ -8,3 +8,4 @@
 ../Core/Src/lcd.c:84:6:lcd_show_txt	16	static
 ../Core/Src/lcd.c:93:6:LCD_PrintFloat	72	static
 ../Core/Src/lcd.c:103:6:lcd_position_cursor	24	static
+../Core/Src/lcd.c:110:6:lcd_print	16	static

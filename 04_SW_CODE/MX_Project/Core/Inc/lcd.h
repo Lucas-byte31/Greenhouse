@@ -2,6 +2,7 @@
 #define LCD_H
 
 #include "stm32g0xx_hal.h"
+#include <stdio.h>
 
 /* -------------------------------------------------------------------------- */
 /*                      Définition des broches du LCD                         */
@@ -36,5 +37,6 @@ void lcd_show_txt(const char *str);
 void LCD_PrintFloat(float value, uint8_t col, uint8_t row, const char* label);
 void lcd_position_cursor(uint8_t col, uint8_t row);
 void lcd_clear(void);
+void lcd_print(uint8_t col, uint8_t row, const char *text);
 
 #endif /* LCD_H */
