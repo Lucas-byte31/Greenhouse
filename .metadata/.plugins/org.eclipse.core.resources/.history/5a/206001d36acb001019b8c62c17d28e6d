@@ -1,0 +1,44 @@
+/*
+ * ACQ_RHT.c
+ *
+ *  Created on: Nov 27, 2025
+ *      Author: paul
+ */
+#include "ACQ_RHT.h"
+
+void ACQHumidity (void)
+{
+/* ================== HUMIDITE sur PA0 = ADC1_IN0 ================== */
+      uint32_t raw_hum = ReadADC_Channel(ADC_CHANNEL_0);
+      float humidity = humidity_from_raw(raw_hum);
+
+      int h100 = (int)(humidity * 100.0f);
+      int h_int = h100 / 100;
+      int h_dec = abs(h100 % 100);
+
+      sprintf(bufferh,
+              "H: rawHum=%lu  Humidite=%d.%02d %%\r\n",
+              raw_hum, h_int, h_dec);
+      HAL_UART_Transmit(&huart2, (uint8_t*)bufferh, strlen(bufferh), HAL_MAX_DELAY);
+
+}
+
+void ACQTemperature (void)
+{
+      /* ============== TEMPERATURE sur PA1 = ADC1_IN1 (TMP235) ============== */
+      uint32_t raw_temp = ReadADC_Channel(ADC_CHANNEL_1);
+      float voltage_adc = (raw_temp * 3.3f) / 4095.0f;
+
+      /* Correction facteur 0.47 (ton hack pour retomber autour de 0.75 V) */
+      float voltage = voltage_adc * 0.47f;
+
+      float temperature = TMP235_linear(voltage);
+
+      int t100 = (int)(temperature * 100.0f);
+      int t_int = t100 / 100;
+      int t_dec = abs(t100 % 100);
+
+      sprintf(buffert,"T: raw=%lu  Vadc=%.3f  Vcorr=%.3f  T=%d.%02d C\r\n",raw_temp, voltage_adc, voltage, t_int, t_dec);
+      HAL_UART_Transmit(&huart2, (uint8_t*)buffert, strlen(buffert), HAL_MAX_DELAY);
+
+}
