@@ -112,3 +112,36 @@ void lcd_print(uint8_t col, uint8_t row, const char *text)
     lcd_position_cursor(col, row);
     lcd_show_txt(text);
 }
+
+// print sur le LCD sans passer par une fonction printf ou sprintf ou snprintf
+//Pour les entiers
+void lcd_print_int(int value)
+{
+    char buf[7]; // -32768\0
+    int i = 0;
+
+    if (value < 0) {
+        lcd_show_carac('-');
+        value = -value;
+    }
+
+    do {
+        buf[i++] = '0' + (value % 10);
+        value /= 10;
+    } while (value && i < sizeof(buf));
+
+    while (i--) {
+        lcd_show_carac(buf[i]);
+    }
+}
+//Pour les FLoats
+void lcd_print_float_1(float value)
+{
+    int iv = (int)value;
+    int dec = (int)((value - iv) * 10);
+    if (dec < 0) dec = -dec;
+
+    lcd_print_int(iv);
+    lcd_show_carac('.');
+    lcd_show_carac('0' + dec);
+}

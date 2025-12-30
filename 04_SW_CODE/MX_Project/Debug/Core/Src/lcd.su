@@ -9,3 +9,5 @@
 ../Core/Src/lcd.c:93:6:LCD_PrintFloat	72	static
 ../Core/Src/lcd.c:103:6:lcd_position_cursor	24	static
 ../Core/Src/lcd.c:110:6:lcd_print	16	static
+../Core/Src/lcd.c:118:6:lcd_print_int	32	static
+../Core/Src/lcd.c:138:6:lcd_print_float_1	24	static

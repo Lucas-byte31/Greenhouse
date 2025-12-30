@@ -1,5 +1,6 @@
 "./Core/Src/capteurs.o"
 "./Core/Src/lcd.o"
+"./Core/Src/lcd_page_manager.o"
 "./Core/Src/main.o"
 "./Core/Src/motor_driver_fan.o"
 "./Core/Src/motor_driver_pump.o"

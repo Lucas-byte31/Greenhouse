@@ -9,3 +9,5 @@
 ../Core/Src/lcd.c:93:6:LCD_PrintFloat	1
 ../Core/Src/lcd.c:103:6:lcd_position_cursor	1
 ../Core/Src/lcd.c:110:6:lcd_print	1
+../Core/Src/lcd.c:118:6:lcd_print_int	5
+../Core/Src/lcd.c:138:6:lcd_print_float_1	2

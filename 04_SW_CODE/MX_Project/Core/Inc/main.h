@@ -31,7 +31,7 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -88,7 +88,18 @@ void Error_Handler(void);
 #define PWM_POMPE_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
-
+//Definition de la structure de l'etat du LCD
+//On viendra la comparer avec l'etat precedent pour voir si on a besoin de rafraîchir la page
+typedef struct
+{
+    int page;
+    int t_int;
+    int h_int;
+    float seuil_temperature;
+    float seuil_humidite;
+    bool pump_on;
+    bool fan_on;
+} lcd_state_t;
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

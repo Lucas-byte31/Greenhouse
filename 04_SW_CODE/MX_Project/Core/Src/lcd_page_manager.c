@@ -1,0 +1,118 @@
+/*
+ * lcd_page_manager.c
+ *
+ *  Created on: Dec 30, 2025
+ *      Author: lucas
+ */
+#include "lcd.h"
+#include "main.h"
+#include <stdbool.h>
+#include <string.h>
+
+/* -------------------------------------------------------------------------- */
+/*                          Fonctions internes (static)                       */
+/* -------------------------------------------------------------------------- */
+// Booleen pour savoir s'il faut rafraichir l'ecran LCD
+static bool lcd_data_changed(lcd_state_t *a, lcd_state_t *b)
+{
+	// COmpare les deux structures current et previous - retourne 1 si elles sont différentes
+	// memcmp permet de comparer 2 structures par exemple, octet par octet
+    return memcmp(a, b, sizeof(lcd_state_t)) != 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                    Fonctions publiques LCD PAGE MANAGER                    */
+/* -------------------------------------------------------------------------- */
+
+void lcd_page_1(lcd_state_t *curr, lcd_state_t *prev)
+			// -------- PAGE 1 --------
+			// Temperature     x°C
+			// Humidite        x%
+{
+	// Si la comparaison current/previous est egale alors on ne fait rien
+    if (!lcd_data_changed(curr, prev)) return;
+    // Sinon on met à jour l'écran
+    lcd_clear();
+
+    lcd_position_cursor(0, 0);
+    lcd_show_txt("Temp: ");
+    lcd_print_int(curr->t_int);
+    lcd_show_carac(0xDF); // Symbole °
+    lcd_show_carac('C'); //C pour Celcius
+
+    lcd_position_cursor(0, 1);
+    lcd_show_txt("Hum: ");
+    lcd_print_int(curr->h_int);
+    lcd_show_carac('%');
+
+    *prev = *curr; // met à jour l'état précédent
+}
+
+
+void lcd_page_2(lcd_state_t *curr, lcd_state_t *prev)
+			// -------- PAGE 2 --------
+			// Temperature     x°C
+			// Seuil           x°C
+{
+    if (!lcd_data_changed(curr, prev)) return;
+
+    lcd_clear();
+
+    lcd_position_cursor(0, 0);
+    lcd_show_txt("Temp: ");
+    lcd_print_int(curr->t_int);
+    lcd_show_carac(0xDF); // Symbole °
+    lcd_show_carac('C'); //C pour Celcius
+
+    lcd_position_cursor(0, 1);
+    lcd_show_txt("Seuil: ");
+    lcd_print_float_1(curr->seuil_temperature);
+    lcd_show_carac(0xDF);
+    lcd_show_carac('C');
+
+    *prev = *curr; // met à jour l'état précédent
+}
+
+
+void lcd_page_3(lcd_state_t *curr, lcd_state_t *prev)
+			// -------- PAGE 3 --------
+			// Humidite        x%
+			// Seuil           x%
+{
+    if (!lcd_data_changed(curr, prev)) return;
+
+    lcd_clear();
+
+    lcd_position_cursor(0, 0);
+    lcd_show_txt("Hum: ");
+    lcd_print_int(curr->h_int);
+    lcd_show_carac('%');
+
+    lcd_position_cursor(0, 1);
+    lcd_show_txt("Seuil: ");
+    lcd_print_float_1(curr->seuil_humidite);
+    lcd_show_carac('%');
+
+    *prev = *curr; // met à jour l'état précédent
+}
+
+
+void lcd_page_4(lcd_state_t *curr, lcd_state_t *prev)
+			// -------- PAGE 4 --------
+			// Pompe       ON/OFF
+			// Ventilateur ON/OFF
+{
+    if (!lcd_data_changed(curr, prev)) return;
+
+    lcd_clear();
+
+    lcd_position_cursor(0, 0);
+    lcd_show_txt("Pompe: ");
+    lcd_show_txt(curr->pump_on ? "ON " : "OFF");
+
+    lcd_position_cursor(0, 1);
+    lcd_show_txt("Ventil: ");
+    lcd_show_txt(curr->fan_on ? "ON " : "OFF");
+
+    *prev = *curr; // met à jour l'état précédent
+}

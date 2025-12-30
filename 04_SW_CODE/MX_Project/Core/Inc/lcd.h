@@ -38,5 +38,7 @@ void LCD_PrintFloat(float value, uint8_t col, uint8_t row, const char* label);
 void lcd_position_cursor(uint8_t col, uint8_t row);
 void lcd_clear(void);
 void lcd_print(uint8_t col, uint8_t row, const char *text);
+void lcd_print_int(int value);
+void lcd_print_float_1(float value);
 
 #endif /* LCD_H */
