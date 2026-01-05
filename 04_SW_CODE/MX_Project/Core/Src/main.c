@@ -26,6 +26,8 @@
 #include "capteurs.h"
 #include "lcd.h"
 #include "lcd_page_manager.h"
+#include "filter.h"
+#include "error_handler.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -72,13 +74,13 @@ static void MX_ADC1_Init(void);
 static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim); //prototype de HAL_TIM_MspPostInit pour éviter warning
-static void __attribute__((unused)) LED_BLINK(int p_blink); //prototype pour blinker la LED, pas utiliser dans la version finale
+
 float TMP235_linear(float voltage);
 float humidity_from_raw(uint32_t raw);
 uint32_t ReadADC_Channel(uint32_t channel);
 
 #define V_REF      3.3f		 // Vref 3.3V
-#define V_OFFSET   0.130f    // ton offset mesure a 0V
+#define V_OFFSET   0.130f    // offset mesure a 0V
 
 #define AIR_VALUE   2675.0f  // mesure en air sec
 #define WATER_VALUE 1780.0f  // mesure dans l'eau
@@ -138,12 +140,23 @@ int main(void)
   //Init de la page du LCD
   static int Var_page = 1;
 
-  static float seuil_temperature = 25.0f;  // exemple
-  static float seuil_humidite = 10.0f;     // exemple
+  static int seuil_temperature = 25;  // Seuil de température
+  static int seuil_humidite = 18;     // Seuil d'humidité
+
+  uint8_t speed = 0;  // Variable pour la vitesse de la pompe (0-100) en %
+  // Définition des points de la rampe
+  float x1 = 0.55f;  // 0.55*seuil_humidite → speed = 100
+  float y1 = 100.0f;
+  float x2 = 1.0f;  // 1.0*seuil_humidite → speed = 50
+  float y2 = 50.0f;
+  // Calcul de la pente (m) et de l'ordonnée à l'origine (b) : y = m*x + b
+  float m = (y2 - y1) / (x2 - x1);
+  float b = y1 - m * x1;
 
   // Initialisation LCD
   lcd_init();
   lcd_clear();
+  static uint32_t last_lcd_update = 0;
 
   // Affichage
   lcd_position_cursor(0,0);
@@ -152,13 +165,33 @@ int main(void)
   lcd_position_cursor(0,1);
   lcd_show_txt("STM32G031U");
 
+  // Pour debug avec printf
+  char buffert[80];
+  char bufferh[80];
+
+
+  //// Init Moyenne glissante LCD
+  static int t_display = -100;
+  static int h_display = -100;
+
+  #define TEMP_DEADBAND 1 // 1 degré de DEADBAND
+  #define HUM_DEADBAND  2 // 2 % de DEADBAND
+
+  moving_avg_filter_t temp_filter;
+  moving_avg_filter_t hum_filter;
+  filter_init(&temp_filter, 8, seuil_temperature); //init du filtre au seuil_temperature
+  filter_init(&hum_filter, 8, seuil_humidite); //init du filtre au seuil humidite
+
+  	 // Init de l'Error Handler
+  error_handler_init(seuil_temperature, seuil_humidite); // Init de l'error handler à 0
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
+	  // Connaitre l'instant présent - utilisé dans l'error handler et dans le rafraichissement du LCD
+      uint32_t now = HAL_GetTick();
 
 	  /* ================== HUMIDITE sur PA0 = ADC1_IN0 ================== */
 	      uint32_t raw_hum = ReadADC_Channel(ADC_CHANNEL_0);
@@ -169,10 +202,10 @@ int main(void)
 	      int h_dec = abs(h100 % 100);
 
 	      //Pour le debug
-	      /*sprintf(bufferh,
+	      sprintf(bufferh,
 	              "H: rawHum=%lu  Humidite=%d.%02d %%\r\n",
 	              raw_hum, h_int, h_dec);
-	      HAL_UART_Transmit(&huart2, (uint8_t*)bufferh, strlen(bufferh), HAL_MAX_DELAY);*/
+	      HAL_UART_Transmit(&huart2, (uint8_t*)bufferh, strlen(bufferh), HAL_MAX_DELAY);
 
 
 	      /* ============== TEMPERATURE sur PA1 = ADC1_IN1 (TMP235) ============== */
@@ -184,10 +217,31 @@ int main(void)
 	      int t_dec = abs(t100 % 100);
 
 	      //Pour le debug
-	      /*sprintf(buffert,
+	      sprintf(buffert,
 	              "T: raw=%lu  T=%d.%02d C\r\n",
 	              raw_temp, t_int, t_dec);
-	      HAL_UART_Transmit(&huart2, (uint8_t*)buffert, strlen(buffert), HAL_MAX_DELAY);*/
+	      HAL_UART_Transmit(&huart2, (uint8_t*)buffert, strlen(buffert), HAL_MAX_DELAY);
+
+
+	      // ===================== Filtrage numérique Temperature et Humidite =====================
+	      /* Un filtrage logiciel par moyenne glissante permet de supprimer le bruit des capteurs
+	      tout en conservant une information pertinente pour l’utilisateur,
+	      sans bloquer l’exécution du système. */
+	      int t_filt = filter_update(&temp_filter, t_int);
+	      int h_filt = filter_update(&hum_filter, h_int);
+
+
+	      /* --- Température --- */
+	      if (abs(t_filt - t_display) >= TEMP_DEADBAND)
+	      {
+	          t_display = t_filt;
+	      }
+
+	      /* --- Humidité --- */
+	      if (abs(h_filt - h_display) >= HUM_DEADBAND)
+	      {
+	          h_display = h_filt;
+	      }
 
 
 	      // ===================== Asservissement de la Ventilation en Automatique =====================
@@ -196,19 +250,32 @@ int main(void)
 	    	  if (temperature >= seuil_temperature)
 	    	  {
 	              Motor_On();
-	              //HAL_Delay(2000); A supprimer?
 	    	  } else {
 	    	  	  Motor_Off();
 	    	  }
 
-
 	      // ===================== Asservissement de la Pompe en Automatique =====================
-	    	  if (humidity <=seuil_humidite)
+
+	    	  // Asservissement linéaire
+	    	  //Plus l'humidité est éloignée de sa consigne, plus la pompe tourne à haute vitesse
+	    	  //Plus l'humidité s'apporche de sa valeur consigne, moins la pompe tourne
+	    	  float humidity_ratio = (float)humidity / seuil_humidite;
+	    	  // Application de l'équation de droite
+	    	  if (humidity_ratio <= x1)
 	    	  {
-	    	  	  Pump_SetSpeed(100);
-	    	  } else {
-	    	  	  Pump_Stop();
+	    	      speed = 100;  // Vitesse max si humidity <= 0.55*seuil_humidite
 	    	  }
+	    	  else if (humidity_ratio <= x2)
+	    	  {
+	    	      speed = (uint8_t)(m * humidity_ratio + b);  // Rampe linéaire
+	    	  }
+	    	  else
+	    	  {
+	    	      speed = 0;  // Pompe éteinte si humidity > 0.999*seuil_humidite
+	    	      Pump_Stop();
+	    	  }
+	    	  	Pump_SetSpeed(speed);
+
 	      }
 
 
@@ -225,99 +292,114 @@ int main(void)
 
 	      // ===================== Mise à jour de l'etat courant de la structure lcd_state_t =====================
 	      lcd_curr.page = Var_page;
-	      lcd_curr.t_int = t_int;
-	      lcd_curr.h_int = h_int;
+	      lcd_curr.t_filt = t_display;
+	      lcd_curr.h_filt = h_display;
 	      lcd_curr.seuil_temperature = seuil_temperature;
 	      lcd_curr.seuil_humidite = seuil_humidite;
 	      lcd_curr.pump_on = Pump_IsOn();
 	      lcd_curr.fan_on = Motor_IsOn();
 
 
-	      // ===================== Mise à jour de l'écran LCD uniquement sur évênement =====================
-	    	  switch (Var_page)
-	    	  {
-	    	  	  case 1:
-	                 // -------- PAGE 1 --------
-	                 // Temperature     x°C
-	                 // Humidite        x%
+	      // Boucle principale de l'affichage LCD
+	      if ((now - last_lcd_update) >= 500)   // 500 ms = confort visuel
+	          {
+	              last_lcd_update = now;
+	              // ===================== Mise à jour de l'écran LCD uniquement sur évênement =====================
+	              switch (Var_page)
+	              {
+	              case 1:
+	            	  // -------- PAGE 1 --------
+	            	  // Temperature     x°C
+	            	  // Humidite        x%
 
-	    	  		  lcd_page_1(&lcd_curr, &lcd_prev);
-
-	                 break;
-
-	             case 2:
-	                 // -------- PAGE 2 --------
-	                 // Temperature     x°C
-	                 // Seuil           x°C
-
-
-	                 if (PB2_pressed && !PB3_pressed )
-	                	 {
-	                	   PB2_pressed = false;       // on consomme l'événement
-	                	   seuil_temperature  += 1.0f ;         // retour à la page 1
-	                	 }
-	                 if (PB3_pressed && !PB2_pressed )
-	                     {
-	                	   PB3_pressed = false;       // on consomme l'événement
-	                	   seuil_temperature -= 1.0f;         // retour à la page 1
-	                	  }
-
-	    	  		  lcd_page_2(&lcd_curr, &lcd_prev);
+	            	  lcd_page_1(&lcd_curr, &lcd_prev);
 
 	                 break;
 
-	             case 3:
-	                 // -------- PAGE 3 --------
-	                 // Humidite        x%
-	                 // Seuil           x%
+	              case 2:
+	            	  // -------- PAGE 2 --------
+	            	  // Temperature     x°C
+	            	  // Seuil           x°C -- limité 0 -> 51°C
 
-	            	 if (PB2_pressed && !PB3_pressed )
-	            	 {
-	            		 PB2_pressed = false;       // on consomme l'événement
-	            		 seuil_humidite += 1.0f;         // retour à la page 1
-	            	 }
-	            	 if (PB3_pressed && !PB2_pressed )
-	            	 {
-	            		 PB3_pressed = false;       // on consomme l'événement
-	            		 seuil_humidite -= 1.0f;         // retour à la page 1
-	            	 }
+	            		  if (PB2_pressed && !PB3_pressed)
+	            		 {
+	            		  PB2_pressed = false;       // on consomme l'événement
+	            		  if (seuil_temperature < 51) seuil_temperature  += 1;// + 1
+	            		 }
+	            		 if (PB3_pressed && !PB2_pressed)
+	            		 {
+	            		  PB3_pressed = false;       // on consomme l'événement
+	            		  if (seuil_temperature > 0) seuil_temperature -= 1; // - 1
+	            		 }
+	            	  lcd_page_2(&lcd_curr, &lcd_prev);
 
-	    	  		  lcd_page_3(&lcd_curr, &lcd_prev);
+	                 break;
+
+	              case 3:
+	            	  // -------- PAGE 3 --------
+	            	  // Humidite        x%
+	            	  // Seuil           x%
+
+	            	  if (PB2_pressed && !PB3_pressed )
+	            	  {
+	            		  PB2_pressed = false;       // on consomme l'événement
+	            		  if (seuil_humidite < 100) seuil_humidite += 1; // +1
+	            	  }
+	            	  if (PB3_pressed && !PB2_pressed )
+	            	  {
+	            		  PB3_pressed = false;       // on consomme l'événement
+	            		  if (seuil_humidite > 0) seuil_humidite -= 1; // -1
+	            	  }
+
+	            	  lcd_page_3(&lcd_curr, &lcd_prev);
 
 	                 break;
 
-	             case 4:
-	                 // -------- PAGE 4 --------
-	                 // Pompe       ON/OFF
-	                 // Ventilateur ON/OFF
+	              case 4:
+	            	  // -------- PAGE 4 --------
+	            	  // Pompe       ON/OFF
+	            	  // Ventilateur ON/OFF
 
-		           // ===================== Ventilateur Manuel=====================
-		            if (PB2_pressed)
-		            {
-		               PB2_pressed = false;   // On remet PB à false
-		                if (Motor_IsOn()) // si le moteur est déjà allumé on l'éteind
-		                    Motor_Off();
-		                else				// si le moteur est éteind on l'allume
-		                    Motor_On();
-		            }
+	            	  // ===================== Ventilateur Manuel=====================
+	            	  if (PB2_pressed)
+	            	  {
+	            		  PB2_pressed = false;   // On remet PB à false
+	            		  if (Motor_IsOn()) // si le moteur est déjà allumé on l'éteind
+	            			  Motor_Off();
+	            		  else				// si le moteur est éteind on l'allume
+	            			  Motor_On();
+	            	  }
 
-		            // ===================== Pompe Manuelle=====================
-		            if (PB3_pressed)
-		            {
-		                PB3_pressed = false;   // On remet PB à false
-		                if (Pump_IsOn())		// si la pompe est déjà allumé on l'éteind
-		                    Pump_Stop();
-		                else
-		                    Pump_SetSpeed(100);   // // si la pompe est éteinte on l'allume à x% PWM
-		            }
+	            	  // ===================== Pompe Manuelle=====================
+	            	  if (PB3_pressed)
+	            	  {
+	            		  PB3_pressed = false;   // On remet PB à false
+	            		  if (Pump_IsOn())		// si la pompe est déjà allumé on l'éteind
+	            			  Pump_Stop();
+	            		  else
+	            			  Pump_SetSpeed(100);   // // si la pompe est éteinte on l'allume à 100% PWM
+	            	  }
 
-	    	  		  lcd_page_4(&lcd_curr, &lcd_prev);
-
+	            	  lcd_page_4(&lcd_curr, &lcd_prev);
 
 	                 break;
-	         }
+	              }
+	          }
 
+	      //Gestion des erreurs
+	      error_handler_update(
+	          t_filt,
+	          h_filt,
+	          Motor_IsOn(),
+	          Pump_IsOn(),
+	          now
+	      );
 
+	      //Pour le debug
+	      sprintf(bufferh,
+	              "ErrorHandlerHasError: %d\r\n",
+				  error_handler_has_error());
+	      HAL_UART_Transmit(&huart2, (uint8_t*)bufferh, strlen(bufferh), HAL_MAX_DELAY);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

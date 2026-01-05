@@ -1,4 +1,6 @@
 "./Core/Src/capteurs.o"
+"./Core/Src/error_handler.o"
+"./Core/Src/filter.o"
 "./Core/Src/lcd.o"
 "./Core/Src/lcd_page_manager.o"
 "./Core/Src/main.o"

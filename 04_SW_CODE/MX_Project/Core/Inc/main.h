@@ -93,13 +93,16 @@ void Error_Handler(void);
 typedef struct
 {
     int page;
-    int t_int;
-    int h_int;
-    float seuil_temperature;
-    float seuil_humidite;
+    int t_filt;
+    int h_filt;
+    int seuil_temperature;
+    int seuil_humidite;
     bool pump_on;
     bool fan_on;
 } lcd_state_t;
+
+void LED_BLINK(int p_blink); //prototype pour blinker la LED
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

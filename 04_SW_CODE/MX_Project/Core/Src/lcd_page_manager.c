@@ -6,6 +6,7 @@
  */
 #include "lcd.h"
 #include "main.h"
+#include "error_handler.h"
 #include <stdbool.h>
 #include <string.h>
 
@@ -15,7 +16,7 @@
 // Booleen pour savoir s'il faut rafraichir l'ecran LCD
 static bool lcd_data_changed(lcd_state_t *a, lcd_state_t *b)
 {
-	// COmpare les deux structures current et previous - retourne 1 si elles sont différentes
+	// Compare les deux structures current et previous - retourne 1 si elles sont différentes
 	// memcmp permet de comparer 2 structures par exemple, octet par octet
     return memcmp(a, b, sizeof(lcd_state_t)) != 0;
 }
@@ -36,14 +37,29 @@ void lcd_page_1(lcd_state_t *curr, lcd_state_t *prev)
 
     lcd_position_cursor(0, 0);
     lcd_show_txt("Temp: ");
-    lcd_print_int(curr->t_int);
+    lcd_print_int(curr->t_filt);
     lcd_show_carac(0xDF); // Symbole °
     lcd_show_carac('C'); //C pour Celcius
 
+
     lcd_position_cursor(0, 1);
     lcd_show_txt("Hum: ");
-    lcd_print_int(curr->h_int);
+    lcd_print_int(curr->h_filt);
     lcd_show_carac('%');
+
+    	// Print de l'etat du systeme OK ou KO
+    	if (error_handler_has_error() == 0)
+    	{
+    	lcd_position_cursor(15, 0);
+    	lcd_show_carac('O'); // Symbole O
+    	lcd_position_cursor(15, 1);
+    	lcd_show_carac('K'); // Symbole K
+    	} else {
+        lcd_position_cursor(15, 0);
+        lcd_show_carac(0xFF); // Symbole carré plein
+        lcd_position_cursor(15, 1);
+        lcd_show_carac(0xFF); // Symbole carré plein
+    	}
 
     *prev = *curr; // met à jour l'état précédent
 }
@@ -60,13 +76,13 @@ void lcd_page_2(lcd_state_t *curr, lcd_state_t *prev)
 
     lcd_position_cursor(0, 0);
     lcd_show_txt("Temp: ");
-    lcd_print_int(curr->t_int);
+    lcd_print_int(curr->t_filt);
     lcd_show_carac(0xDF); // Symbole °
     lcd_show_carac('C'); //C pour Celcius
 
     lcd_position_cursor(0, 1);
     lcd_show_txt("Seuil: ");
-    lcd_print_float_1(curr->seuil_temperature);
+    lcd_print_int(curr->seuil_temperature);
     lcd_show_carac(0xDF);
     lcd_show_carac('C');
 
@@ -85,12 +101,12 @@ void lcd_page_3(lcd_state_t *curr, lcd_state_t *prev)
 
     lcd_position_cursor(0, 0);
     lcd_show_txt("Hum: ");
-    lcd_print_int(curr->h_int);
+    lcd_print_int(curr->h_filt);
     lcd_show_carac('%');
 
     lcd_position_cursor(0, 1);
     lcd_show_txt("Seuil: ");
-    lcd_print_float_1(curr->seuil_humidite);
+    lcd_print_int(curr->seuil_humidite);
     lcd_show_carac('%');
 
     *prev = *curr; // met à jour l'état précédent
