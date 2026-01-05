@@ -258,7 +258,7 @@ int main(void)
 
 	    	  // Asservissement linéaire
 	    	  //Plus l'humidité est éloignée de sa consigne, plus la pompe tourne à haute vitesse
-	    	  //Plus l'humidité s'apporche de sa valeur consigne, moins la pompe tourne
+	    	  //Plus l'humidité s'approche de sa valeur consigne, moins la pompe tourne
 	    	  float humidity_ratio = (float)humidity / seuil_humidite;
 	    	  // Application de l'équation de droite
 	    	  if (humidity_ratio <= x1)
@@ -276,7 +276,10 @@ int main(void)
 	    	  }
 	    	  	Pump_SetSpeed(speed);
 
+	      } else {
+	    	  // Ne rien faire
 	      }
+
 
 
 	      // ===================== Changement de page si PB1 appuyé =====================
@@ -285,7 +288,7 @@ int main(void)
 	          PB1_pressed = false;       // on consomme l'événement
 
 	          Var_page++;
-	          if (Var_page > 4)
+	          if (Var_page > 5)
 	              Var_page = 1;          // retour à la page 1
 	      }
 
@@ -338,7 +341,7 @@ int main(void)
 	              case 3:
 	            	  // -------- PAGE 3 --------
 	            	  // Humidite        x%
-	            	  // Seuil           x%
+	            	  // Seuil           x% -- limité 0 -> 100%
 
 	            	  if (PB2_pressed && !PB3_pressed )
 	            	  {
@@ -383,6 +386,16 @@ int main(void)
 	            	  lcd_page_4(&lcd_curr, &lcd_prev);
 
 	                 break;
+
+	              case 5:
+	              	  // -------- PAGE 5 -------- MAINTENANCE
+	      			// SYSTEME OK
+	      			// FAN SYSTEM OK/KO
+	      			// PUMP SYSTEM OK/KO
+	              	       lcd_page_5(&lcd_curr, &lcd_prev);
+
+	              	 break;
+
 	              }
 	          }
 
@@ -390,6 +403,8 @@ int main(void)
 	      error_handler_update(
 	          t_filt,
 	          h_filt,
+			  seuil_temperature,
+			  seuil_humidite,
 	          Motor_IsOn(),
 	          Pump_IsOn(),
 	          now
@@ -673,11 +688,17 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void LED_BLINK(int p_blink)
+// Fonction pour faire blinker la LED du STM32
+void LED_BLINK(uint32_t blink_period_ms)
 {
-	int i_blinking = p_blink;
-    HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);  // Change l'état de la LED
-    HAL_Delay(i_blinking);   // attente
+    static uint32_t last_toggle = 0;
+    uint32_t now = HAL_GetTick();
+
+    if ((now - last_toggle) >= blink_period_ms) // Check du temps
+    {
+        last_toggle = now;
+        HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin); // Change l'état de la LED
+    }
 }
 
 

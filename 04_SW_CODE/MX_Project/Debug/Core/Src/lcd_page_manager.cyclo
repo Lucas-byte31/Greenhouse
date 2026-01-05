@@ -3,3 +3,4 @@
 ../Core/Src/lcd_page_manager.c:68:6:lcd_page_2	2
 ../Core/Src/lcd_page_manager.c:93:6:lcd_page_3	2
 ../Core/Src/lcd_page_manager.c:116:6:lcd_page_4	4
+../Core/Src/lcd_page_manager.c:137:6:lcd_page_5	6

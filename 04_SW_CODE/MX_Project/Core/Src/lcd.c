@@ -9,14 +9,23 @@
 /* -------------------------------------------------------------------------- */
 /*                          Fonctions internes (static)                       */
 /* -------------------------------------------------------------------------- */
+// Pour ne pas utiliser de Delay - ne bloque pas la CPU
+static void lcd_wait_ms(uint32_t delay)
+{
+    uint32_t start = HAL_GetTick();
+    while ((HAL_GetTick() - start) < delay)
+    {
+        // attente non bloquante (CPU libre)
+    }
+}
 
 /* Envoie une impulsion sur la ligne EN */
 static void lcd_send_pulse(void)
 {
     HAL_GPIO_WritePin(LCD_EN_Port, LCD_EN_Pin, GPIO_PIN_SET);
-    HAL_Delay(1);
+    lcd_wait_ms(1);
     HAL_GPIO_WritePin(LCD_EN_Port, LCD_EN_Pin, GPIO_PIN_RESET);
-    HAL_Delay(1);
+    lcd_wait_ms(1);
 }
 
 /* Écrit un nibble (4 bits) sur les broches D4-D7 */
@@ -47,25 +56,26 @@ static void lcd_send_octet(uint8_t value, uint8_t rs)
 void lcd_send_commande(uint8_t cmd)
 {
     lcd_send_octet(cmd, 0);
-    HAL_Delay(2);
+    lcd_wait_ms(2);
 }
 
 /* Efface l'écran */
 void lcd_clear(void)
 {
     lcd_send_commande(0x01);
-    HAL_Delay(2);
+    lcd_wait_ms(2);
 }
 
 /* Initialisation du LCD en mode 4 bits */
+// Delay autorisé car hors du While dans le main
 void lcd_init(void)
 {
-    HAL_Delay(40);   // Attente après alimentation
+	lcd_wait_ms(40);   // Attente après alimentation
 
     // Séquence spéciale pour entrer en mode 4 bits
-    lcd_send_nibble(0x03); HAL_Delay(5);
-    lcd_send_nibble(0x03); HAL_Delay(5);
-    lcd_send_nibble(0x03); HAL_Delay(1);
+    lcd_send_nibble(0x03); lcd_wait_ms(5);
+    lcd_send_nibble(0x03); lcd_wait_ms(5);
+    lcd_send_nibble(0x03); lcd_wait_ms(1);
     lcd_send_nibble(0x02); // passage mode 4 bits
 
     lcd_send_commande(0x28); // 4 bits, 2 lignes, matrice 5x8

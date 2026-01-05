@@ -101,7 +101,8 @@ typedef struct
     bool fan_on;
 } lcd_state_t;
 
-void LED_BLINK(int p_blink); //prototype pour blinker la LED
+
+void LED_BLINK(uint32_t blink_period_ms); //prototype pour blinker la LED
 
 /* USER CODE END Private defines */
 

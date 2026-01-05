@@ -18,5 +18,6 @@ void lcd_page_1(lcd_state_t *curr, lcd_state_t *prev);
 void lcd_page_2(lcd_state_t *curr, lcd_state_t *prev);
 void lcd_page_3(lcd_state_t *curr, lcd_state_t *prev);
 void lcd_page_4(lcd_state_t *curr, lcd_state_t *prev);
+void lcd_page_5(lcd_state_t *curr, lcd_state_t *prev);
 
 #endif /* INC_LCD_PAGE_MANAGER_H_ */

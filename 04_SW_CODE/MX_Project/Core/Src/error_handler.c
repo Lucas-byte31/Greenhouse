@@ -19,12 +19,10 @@
 #include <stdlib.h>
 
 /* ================== CONFIG ================== */
-#define TEMP_NO_DROP_TIMEOUT_MS     6000
-#define HUM_NO_RISE_TIMEOUT_MS      6000
-#define ERROR_RESET_TIMEOUT_MS      2500  // Temps pour réinitialiser l'erreur
+#define TEMP_NO_DROP_TIMEOUT_MS     15000
 
-#define TEMP_MAX_JUMP               15     // °C instantané
-#define HUM_MAX_JUMP                60     // % instantané
+#define TEMP_MAX_JUMP               80     // °C instantané à confirmer pendant xsecondes
+#define HUM_MAX_JUMP                98     // % instantané à confirmer pendant xsecondes
 
 #define LED_BLINK_PERIOD_MS         200
 /* ============================================ */
@@ -37,6 +35,7 @@ static uint32_t temp_timer = 0;
 static uint32_t hum_timer  = 0;
 static uint32_t temp_error_reset_timer = 0;
 static uint32_t hum_error_reset_timer  = 0;
+static uint32_t error_code = 0;
 
 static bool temp_error = false;
 static bool hum_error  = false;
@@ -57,68 +56,43 @@ void error_handler_init(int temp_init, int hum_init)
 
 void error_handler_update(int temp,
                           int hum,
+						  int seuil_temp,
+						  int seuil_hum,
                           bool fan_on,
                           bool pump_on,
                           uint32_t now_ms)
 {
-    /* ---------- Détection sauts anormaux ---------- */
-    if (abs(temp - last_temp) > TEMP_MAX_JUMP)
-    {
-        temp_error = true;
-        temp_error_reset_timer = now_ms;  // Démarre le timer de réinitialisation
-    }
-    else if (temp_error && (now_ms - temp_error_reset_timer) > ERROR_RESET_TIMEOUT_MS)
-    {
-        temp_error = false;  // Réinitialise l'erreur après un délai stable
-    }
 
-    if (abs(hum - last_hum) > HUM_MAX_JUMP)
-    {
-        hum_error = true;
-        hum_error_reset_timer = now_ms;
-    }
-    else if (hum_error && (now_ms - hum_error_reset_timer) > ERROR_RESET_TIMEOUT_MS)
-    {
-        hum_error = false;
-    }
-
-    /* ---------- Température ne baisse pas ---------- */
-    if (fan_on)
-    {
-        if (temp < last_temp)
+    /* ---------- Température ne baisse pas malgré la consigne---------- */
+    	/* ---------- Capteur de température HS ( >80°C )---------- */
+        if (temp <= seuil_temp && temp <= TEMP_MAX_JUMP)
         {
             temp_timer = now_ms;  // OK → reset timer
+            temp_error = false;
         }
         else if ((now_ms - temp_timer) > TEMP_NO_DROP_TIMEOUT_MS)
         {
             temp_error = true;
             temp_error_reset_timer = now_ms;
         }
-    }
-    else
-    {
-        temp_timer = now_ms;  // ventilateur OFF → pas de diagnostic
-    }
 
-    /* ---------- Humidité ne monte pas ---------- */
-    if (pump_on)
-    {
-        if (hum > last_hum)
-        {
-            hum_timer = now_ms;
-        }
-        else if ((now_ms - hum_timer) > HUM_NO_RISE_TIMEOUT_MS)
-        {
-            hum_error = true;
-            hum_error_reset_timer = now_ms;
-        }
-    }
-    else
-    {
-        hum_timer = now_ms;
-    }
 
-    /* ---------- Action LED ---------- */
+    /* ---------- Humidité n'augmente pas malgré la consigne---------- */
+        /* ---------- Capteur d'humidité HS ( >98% )---------- */
+        if (hum >= seuil_hum && hum <= HUM_MAX_JUMP)
+        {
+        	hum_timer = now_ms;  // OK → reset timer
+        	hum_error = false;
+        }
+        else if ((now_ms - hum_timer) > TEMP_NO_DROP_TIMEOUT_MS)
+        {
+        	hum_error = true;
+        	hum_error_reset_timer = now_ms;
+        }
+
+
+
+    /* ---------- On active la LED si erreur ---------- */
     if (temp_error || hum_error)
     {
         LED_BLINK(LED_BLINK_PERIOD_MS);
@@ -130,10 +104,13 @@ void error_handler_update(int temp,
 
     /* ---------- Historique ---------- */
     last_temp = temp;
-    last_hum  = hum;
 }
 
-bool error_handler_has_error(void)
+int error_handler_has_error(void)
 {
-    return (temp_error || hum_error);
+	if (!temp_error && !hum_error) error_code = 0;
+	else if (temp_error && !hum_error) error_code = 1;
+	else if  (!temp_error && hum_error) error_code = 2;
+	else if  (temp_error && hum_error) error_code = 3;
+    return (error_code);
 }

@@ -8,7 +8,7 @@
 
 #include "filter.h"
 
-
+// Initialisation du Filtre numérique
 void filter_init(moving_avg_filter_t *f, int size, int init_value)
 {
     f->size = size;
@@ -19,7 +19,7 @@ void filter_init(moving_avg_filter_t *f, int size, int init_value)
         f->buffer[i] = init_value;
 }
 
-
+// Filtre numérique à moyenne glissante
 int filter_update(moving_avg_filter_t *f, int new_value)
 {
     f->sum -= f->buffer[f->index];

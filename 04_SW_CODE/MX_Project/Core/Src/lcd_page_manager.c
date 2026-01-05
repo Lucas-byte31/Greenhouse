@@ -47,7 +47,7 @@ void lcd_page_1(lcd_state_t *curr, lcd_state_t *prev)
     lcd_print_int(curr->h_filt);
     lcd_show_carac('%');
 
-    	// Print de l'etat du systeme OK ou KO
+    	// Print de l'etat du systeme OK ou KO affiché sur la page 1 uniquement
     	if (error_handler_has_error() == 0)
     	{
     	lcd_position_cursor(15, 0);
@@ -129,6 +129,50 @@ void lcd_page_4(lcd_state_t *curr, lcd_state_t *prev)
     lcd_position_cursor(0, 1);
     lcd_show_txt("Ventil: ");
     lcd_show_txt(curr->fan_on ? "ON " : "OFF");
+
+    *prev = *curr; // met à jour l'état précédent
+}
+
+
+void lcd_page_5(lcd_state_t *curr, lcd_state_t *prev)
+			// -------- PAGE 5 --------
+			// SYSTEME OK
+			// FAN SYSTEM OK/KO
+			// PUMP SYSTEM OK/KO
+{
+    if (!lcd_data_changed(curr, prev)) return;
+
+    	lcd_clear();
+
+		// Etat du systeme en Page 5
+		if (error_handler_has_error() == 0)
+		{
+			lcd_position_cursor(0, 0);
+			lcd_show_txt("LE SYSTEME");
+			lcd_position_cursor(0, 1);
+			lcd_show_txt("FONCTIONNE BIEN");
+		}
+		else if (error_handler_has_error() == 1)
+		{
+			lcd_position_cursor(0, 0);
+			lcd_show_txt("FAN SYSTEM KO");
+			lcd_position_cursor(0, 1);
+			lcd_show_txt("PUMP SYSTEM OK");
+		}
+		else if (error_handler_has_error() == 2)
+		{
+			lcd_position_cursor(0, 0);
+			lcd_show_txt("FAN SYSTEM OK");
+			lcd_position_cursor(0, 1);
+			lcd_show_txt("PUMP SYSTEM KO");
+		}
+		else if (error_handler_has_error() == 3)
+		{
+			lcd_position_cursor(0, 0);
+			lcd_show_txt("FAN SYSTEM KO");
+			lcd_position_cursor(0, 1);
+			lcd_show_txt("PUMP SYSTEM KO");
+		}
 
     *prev = *curr; // met à jour l'état précédent
 }
