@@ -37,15 +37,15 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  16 .debug_macro  0001970b  00000000  00000000  00023fbd  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_line   00015567  00000000  00000000  0003d6c8  2**0
+ 17 .debug_line   00015569  00000000  00000000  0003d6c8  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    0009f372  00000000  00000000  00052c2f  2**0
+ 18 .debug_str    0009f372  00000000  00000000  00052c31  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000043  00000000  00000000  000f1fa1  2**0
+ 19 .comment      00000043  00000000  00000000  000f1fa3  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  00005204  00000000  00000000  000f1fe4  2**2
+ 20 .debug_frame  00005204  00000000  00000000  000f1fe8  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 21 .debug_line_str 0000008b  00000000  00000000  000f71e8  2**0
+ 21 .debug_line_str 0000008b  00000000  00000000  000f71ec  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -8745,10 +8745,10 @@ int main(void)
  800420a:	0019      	movs	r1, r3
  800420c:	0010      	movs	r0, r2
  800420e:	f7ff fb03 	bl	8003818 <error_handler_init>
-  /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
 	  // Connaitre l'instant présent - utilisé dans l'error handler et dans le rafraichissement du LCD
       uint32_t now = HAL_GetTick();
  8004212:	f001 f8c3 	bl	800539c <HAL_GetTick>

@@ -187,6 +187,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
 	  // Connaitre l'instant présent - utilisé dans l'error handler et dans le rafraichissement du LCD
       uint32_t now = HAL_GetTick();
 
@@ -198,11 +199,11 @@ int main(void)
 	      int h_int = h100 / 100;
 	      int h_dec = abs(h100 % 100);
 
-	      //Pour le debug
+	      /*Pour le debug
 	      sprintf(bufferh,
 	              "H: rawHum=%lu  Humidite=%d.%02d %%\r\n",
 	              raw_hum, h_int, h_dec);
-	      HAL_UART_Transmit(&huart2, (uint8_t*)bufferh, strlen(bufferh), HAL_MAX_DELAY);
+	      HAL_UART_Transmit(&huart2, (uint8_t*)bufferh, strlen(bufferh), HAL_MAX_DELAY);*/
 
 
 	      /* ============== TEMPERATURE sur PA1 = ADC1_IN1 (TMP235) ============== */
@@ -213,11 +214,11 @@ int main(void)
 	      int t_int = t100 / 100;
 	      int t_dec = abs(t100 % 100);
 
-	      //Pour le debug
+	      /*Pour le debug
 	      sprintf(buffert,
 	              "T: raw=%lu  T=%d.%02d C\r\n",
 	              raw_temp, t_int, t_dec);
-	      HAL_UART_Transmit(&huart2, (uint8_t*)buffert, strlen(buffert), HAL_MAX_DELAY);
+	      HAL_UART_Transmit(&huart2, (uint8_t*)buffert, strlen(buffert), HAL_MAX_DELAY);*/
 
 
 	      // ===================== Filtrage numérique Temperature et Humidite =====================
@@ -409,11 +410,11 @@ int main(void)
 	          now
 	      );
 
-	      //Pour le debug
+	      /*Pour le debug
 	      sprintf(bufferh,
 	              "ErrorHandlerHasError: %d\r\n",
 				  error_handler_has_error());
-	      HAL_UART_Transmit(&huart2, (uint8_t*)bufferh, strlen(bufferh), HAL_MAX_DELAY);
+	      HAL_UART_Transmit(&huart2, (uint8_t*)bufferh, strlen(bufferh), HAL_MAX_DELAY);*/
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
