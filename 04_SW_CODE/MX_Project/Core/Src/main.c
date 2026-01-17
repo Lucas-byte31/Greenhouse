@@ -127,10 +127,6 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-  //Lcd_Set_Cursor(0, 0);
-  //Lcd_Write_String("HELLO WORLD");
-  //Lcd_Set_Cursor(1, 0);
-  //Lcd_Write_String("from CESI");
 
   // On initialise le moteur a OFF
   Motor_Off();
@@ -142,6 +138,7 @@ int main(void)
 
   static int seuil_temperature = 25;  // Seuil de température
   static int seuil_humidite = 18;     // Seuil d'humidité
+  static int code_erreur = 0; //init du code erreur à 0
 
   uint8_t speed = 0;  // Variable pour la vitesse de la pompe (0-100) en %
   // Définition des points de la rampe
@@ -171,8 +168,8 @@ int main(void)
 
 
   //// Init Moyenne glissante LCD
-  static int t_display = -100;
-  static int h_display = -100;
+  static int t_display = 0;
+  static int h_display = 0;
 
   #define TEMP_DEADBAND 1 // 1 degré de DEADBAND
   #define HUM_DEADBAND  2 // 2 % de DEADBAND
@@ -183,7 +180,7 @@ int main(void)
   filter_init(&hum_filter, 8, seuil_humidite); //init du filtre au seuil humidite
 
   	 // Init de l'Error Handler
-  error_handler_init(seuil_temperature, seuil_humidite); // Init de l'error handler à 0
+  error_handler_init(seuil_temperature, seuil_humidite); // Init de l'error handler
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -299,6 +296,7 @@ int main(void)
 	      lcd_curr.h_filt = h_display;
 	      lcd_curr.seuil_temperature = seuil_temperature;
 	      lcd_curr.seuil_humidite = seuil_humidite;
+	      lcd_curr.code_erreur = code_erreur;
 	      lcd_curr.pump_on = Pump_IsOn();
 	      lcd_curr.fan_on = Motor_IsOn();
 
@@ -380,7 +378,7 @@ int main(void)
 	            		  if (Pump_IsOn())		// si la pompe est déjà allumé on l'éteind
 	            			  Pump_Stop();
 	            		  else
-	            			  Pump_SetSpeed(100);   // // si la pompe est éteinte on l'allume à 100% PWM
+	            			  Pump_SetSpeed(99);   // // si la pompe est éteinte on l'allume à 99% PWM
 	            	  }
 
 	            	  lcd_page_4(&lcd_curr, &lcd_prev);
@@ -392,7 +390,8 @@ int main(void)
 	      			// SYSTEME OK
 	      			// FAN SYSTEM OK/KO
 	      			// PUMP SYSTEM OK/KO
-	              	       lcd_page_5(&lcd_curr, &lcd_prev);
+	            	  	  code_erreur = error_handler_has_error(); // mise à jour du code erreur
+	              	      lcd_page_5(&lcd_curr, &lcd_prev);
 
 	              	 break;
 

@@ -97,6 +97,7 @@ typedef struct
     int h_filt;
     int seuil_temperature;
     int seuil_humidite;
+    int code_erreur;
     bool pump_on;
     bool fan_on;
 } lcd_state_t;
