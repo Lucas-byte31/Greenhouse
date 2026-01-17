@@ -248,7 +248,10 @@ int main(void)
 	    	  if (temperature >= seuil_temperature)
 	    	  {
 	              Motor_On();
-	    	  } else {
+	    	  } else if (temperature < (seuil_temperature - 0.5f))
+	    		  // petite hysteresis pour éviter que
+	    		  // le ventilateur démmarre et s'arrête en permanence quand temperature oscille sur seuil_temperature
+	    	  {
 	    	  	  Motor_Off();
 	    	  }
 
