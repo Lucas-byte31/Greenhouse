@@ -25,6 +25,7 @@ static bool lcd_data_changed(lcd_state_t *a, lcd_state_t *b)
 /*                    Fonctions publiques LCD PAGE MANAGER                    */
 /* -------------------------------------------------------------------------- */
 
+// Page principale
 void lcd_page_1(lcd_state_t *curr, lcd_state_t *prev)
 			// -------- PAGE 1 --------
 			// Temperature     x°C
@@ -64,14 +65,14 @@ void lcd_page_1(lcd_state_t *curr, lcd_state_t *prev)
     *prev = *curr; // met à jour l'état précédent
 }
 
-
+// Régulation température
 void lcd_page_2(lcd_state_t *curr, lcd_state_t *prev)
 			// -------- PAGE 2 --------
 			// Temperature     x°C
 			// Seuil           x°C
 {
     if (!lcd_data_changed(curr, prev)) return;
-
+    // Sinon on met à jour l'écran
     lcd_clear();
 
     lcd_position_cursor(0, 0);
@@ -89,7 +90,7 @@ void lcd_page_2(lcd_state_t *curr, lcd_state_t *prev)
     *prev = *curr; // met à jour l'état précédent
 }
 
-
+// Régulation humidité
 void lcd_page_3(lcd_state_t *curr, lcd_state_t *prev)
 			// -------- PAGE 3 --------
 			// Humidite        x%
@@ -98,7 +99,7 @@ void lcd_page_3(lcd_state_t *curr, lcd_state_t *prev)
     if (!lcd_data_changed(curr, prev)) return;
 
     lcd_clear();
-
+    // Sinon on met à jour l'écran
     lcd_position_cursor(0, 0);
     lcd_show_txt("Hum: ");
     lcd_print_int(curr->h_filt);
@@ -112,14 +113,14 @@ void lcd_page_3(lcd_state_t *curr, lcd_state_t *prev)
     *prev = *curr; // met à jour l'état précédent
 }
 
-
+// Activation manuelle
 void lcd_page_4(lcd_state_t *curr, lcd_state_t *prev)
 			// -------- PAGE 4 --------
 			// Pompe       ON/OFF
 			// Ventilateur ON/OFF
 {
     if (!lcd_data_changed(curr, prev)) return;
-
+    // Sinon on met à jour l'écran
     lcd_clear();
 
     lcd_position_cursor(0, 0);
@@ -133,7 +134,7 @@ void lcd_page_4(lcd_state_t *curr, lcd_state_t *prev)
     *prev = *curr; // met à jour l'état précédent
 }
 
-
+// Maintenance
 void lcd_page_5(lcd_state_t *curr, lcd_state_t *prev)
 			// -------- PAGE 5 --------
 			// SYSTEME OK
@@ -141,7 +142,7 @@ void lcd_page_5(lcd_state_t *curr, lcd_state_t *prev)
 			// PUMP SYSTEM OK/KO
 {
     if (!lcd_data_changed(curr, prev)) return;
-
+    // Sinon on met à jour l'écran
     	lcd_clear();
 
 

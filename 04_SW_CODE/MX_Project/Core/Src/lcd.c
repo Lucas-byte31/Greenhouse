@@ -1,6 +1,9 @@
 /*
  * lcd.c
  *
+ * Implémentation du protocole de communication LCD.
+ * Le mode 4 bits est utilisé pour économiser des broches GPIO sur le STM32.
+ *
  *  Created on: Nov 27, 2025
  *      Author: lucas
  */
@@ -9,7 +12,7 @@
 /* -------------------------------------------------------------------------- */
 /*                          Fonctions internes (static)                       */
 /* -------------------------------------------------------------------------- */
-// Pour ne pas utiliser de Delay - ne bloque pas la CPU
+// Attente temporelle non-bloquante.
 static void lcd_wait_ms(uint32_t delay)
 {
     uint32_t start = HAL_GetTick();
@@ -28,7 +31,9 @@ static void lcd_send_pulse(void)
     lcd_wait_ms(1);
 }
 
-/* Écrit un nibble (4 bits) sur les broches D4-D7 */
+/* Envoie un nibble (4 bits) sur les broches D4-D7 */
+// on place les 4 bits sur les lignes D4-D7
+// puis on génère une impulsion sur la ligne Enable (EN).
 static void lcd_send_nibble(uint8_t nibble)
 {
     HAL_GPIO_WritePin(LCD_D4_Port, LCD_D4_Pin, (nibble & 0x01) ? GPIO_PIN_SET : GPIO_PIN_RESET);
@@ -40,11 +45,15 @@ static void lcd_send_nibble(uint8_t nibble)
 }
 
 /* Envoie un octet (commande ou donnée) */
+// Envoie un octet complet (8 bits) en deux étapes.
+// rs : 0 pour une commande, 1 pour une donnée (caractère).
 static void lcd_send_octet(uint8_t value, uint8_t rs)
 {
     HAL_GPIO_WritePin(LCD_RS_Port, LCD_RS_Pin, rs);
 
+    // On envoie d'abord les 4 bits de poids fort (MSB)
     lcd_send_nibble(value >> 4);     // nibble haut
+    // Puis les 4 bits de poids faible (LSB)
     lcd_send_nibble(value & 0x0F);   // nibble bas
 }
 
@@ -67,13 +76,13 @@ void lcd_clear(void)
 }
 
 /* Initialisation du LCD en mode 4 bits */
-// Delay autorisé car hors du While dans le main
+// Respecte la séquence de démarrage imposée par la datasheet
 void lcd_init(void)
 {
 	lcd_wait_ms(40);   // Attente après alimentation
 
     // Séquence spéciale pour entrer en mode 4 bits
-    lcd_send_nibble(0x03); lcd_wait_ms(5);
+    lcd_send_nibble(0x03); lcd_wait_ms(5); // Attente stabilisation tension
     lcd_send_nibble(0x03); lcd_wait_ms(5);
     lcd_send_nibble(0x03); lcd_wait_ms(1);
     lcd_send_nibble(0x02); // passage mode 4 bits
@@ -127,24 +136,33 @@ void lcd_print(uint8_t col, uint8_t row, const char *text)
 //Pour les entiers
 void lcd_print_int(int value)
 {
+	// Buffer local pour stocker les chiffres (max 5 chiffres + signe + \0 pour un int16)
     char buf[7]; // -32768\0
     int i = 0;
 
+    // --- Gestion du signe ---
     if (value < 0) {
-        lcd_show_carac('-');
-        value = -value;
+        lcd_show_carac('-'); // Affiche le signe moins immédiatement
+        value = -value; // Travaille ensuite avec la valeur absolue
     }
 
+    // Algorithme de décomposition (Modulo/Division)
+    // On extrait les chiffres un par un en partant des unités
     do {
+    	// '0' + reste de la division par 10 transforme le chiffre en caractère ASCII
         buf[i++] = '0' + (value % 10);
         value /= 10;
-    } while (value && i < sizeof(buf));
+    } while (value && i < sizeof(buf)); // Continue tant qu'il y a des chiffres
 
+
+    //  Inversion et affichage
+     // Les chiffres ayant été extraits à l'envers (unités d'abord),
+    // on parcourt le buffer en sens inverse pour les envoyer au LCD.
     while (i--) {
         lcd_show_carac(buf[i]);
     }
 }
-//Pour les FLoats
+//Pour les FLoats sans passer par le printf
 void lcd_print_float_1(float value)
 {
     int iv = (int)value;

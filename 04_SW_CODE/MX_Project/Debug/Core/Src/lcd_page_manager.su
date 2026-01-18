@@ -1,6 +1,6 @@
 ../Core/Src/lcd_page_manager.c:17:13:lcd_data_changed	16	static
-../Core/Src/lcd_page_manager.c:28:6:lcd_page_1	24	static
-../Core/Src/lcd_page_manager.c:68:6:lcd_page_2	24	static
-../Core/Src/lcd_page_manager.c:93:6:lcd_page_3	24	static
-../Core/Src/lcd_page_manager.c:116:6:lcd_page_4	24	static
-../Core/Src/lcd_page_manager.c:137:6:lcd_page_5	24	static
+../Core/Src/lcd_page_manager.c:29:6:lcd_page_1	24	static
+../Core/Src/lcd_page_manager.c:69:6:lcd_page_2	24	static
+../Core/Src/lcd_page_manager.c:94:6:lcd_page_3	24	static
+../Core/Src/lcd_page_manager.c:117:6:lcd_page_4	24	static
+../Core/Src/lcd_page_manager.c:138:6:lcd_page_5	24	static

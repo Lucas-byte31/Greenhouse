@@ -62,10 +62,11 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE END PV */
 
-//Push button
-volatile bool PB1_pressed = false;   // Flag PB1
-volatile bool PB2_pressed = false;   // Flag PB2
-volatile bool PB3_pressed = false;   // Flag PB3
+//Flags d'interruption pour les boutons poussoir : mis à TRUE par IT GPIO
+// Mis à FALSE par le main
+volatile bool PB1_pressed = false;   // Flag PB1 - Bouton rouge - navigation dans les menus
+volatile bool PB2_pressed = false;   // Flag PB2 - Bouton blanc - Incrémentation consigne ou Forcage manuel
+volatile bool PB3_pressed = false;   // Flag PB3 - Bouton vert - Décrémentation consigne ou Forcage manuel
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
@@ -126,6 +127,7 @@ int main(void)
   MX_USART2_UART_Init();
   MX_ADC1_Init();
   MX_TIM3_Init();
+
   /* USER CODE BEGIN 2 */
 
   // On initialise le moteur a OFF
@@ -133,20 +135,21 @@ int main(void)
   // On initialise la pompe a OFF
   Pump_Init(); // init de la pompe
   
-  //Init de la page du LCD
-  static int Var_page = 1;
-
-  static int seuil_temperature = 25;  // Seuil de température
-  static int seuil_humidite = 18;     // Seuil d'humidité
+  //--Paramètres de régulation par défaut--//
+  static int Var_page = 1; // page affichée au démarrage
+  static int seuil_temperature = 25;  // Seuil de température par défaut
+  static int seuil_humidite = 18;     // Seuil d'humidité par défaut
   static int code_erreur = 0; //init du code erreur à 0
-
   uint8_t speed = 0;  // Variable pour la vitesse de la pompe (0-100) en %
-  // Définition des points de la rampe
+
+
+  //--Configuration du PWM pour la pompe--//
+  //--Calcul de la rampe linéaire à l'approche du seuil d'humidité--//
   float x1 = 0.55f;  // 0.55*seuil_humidite → speed = 100
   float y1 = 100.0f;
   float x2 = 1.0f;  // 1.0*seuil_humidite → speed = 50
   float y2 = 50.0f;
-  // Calcul de la pente (m) et de l'ordonnée à l'origine (b) : y = m*x + b
+  // Calcul des coefficients m et b de la droite y = mx + b
   float m = (y2 - y1) / (x2 - x1);
   float b = y1 - m * x1;
 
@@ -162,20 +165,23 @@ int main(void)
   lcd_position_cursor(0,1);
   lcd_show_txt("STM32G031U");
 
-  // Pour debug avec printf
-  char buffert[80];
-  char bufferh[80];
+  // Pour debug avec printf -- pas besoin en opérationnel
+  /*char buffert[80];
+  char bufferh[80];*/
 
 
-  //// Init Moyenne glissante LCD
-  static int t_display = 0;
-  static int h_display = 0;
 
-  #define TEMP_DEADBAND 1 // 1 degré de DEADBAND
+ //- Filtrage sur moyenne glissante pour éviter le clear intempestif du LCD --//
+  // Init Moyenne glissante
+  static int t_display = 0; // température affichée
+  static int h_display = 0; // humidité affichée
+
+  #define TEMP_DEADBAND 1 // 1 °C de DEADBAND
   #define HUM_DEADBAND  2 // 2 % de DEADBAND
 
   moving_avg_filter_t temp_filter;
   moving_avg_filter_t hum_filter;
+  //Moyenne glissante sur 8 échantillons pour stabiliser l'affichage sur le LCD
   filter_init(&temp_filter, 8, seuil_temperature); //init du filtre au seuil_temperature
   filter_init(&hum_filter, 8, seuil_humidite); //init du filtre au seuil humidite
 
@@ -197,7 +203,7 @@ int main(void)
 
 	      int h100 = (int)(humidity * 100.0f);
 	      int h_int = h100 / 100;
-	      int h_dec = abs(h100 % 100);
+	      //int h_dec = abs(h100 % 100); //utilisée que pour le debug
 
 	      /*Pour le debug
 	      sprintf(bufferh,
@@ -212,7 +218,7 @@ int main(void)
 
 	      int t100 = (int)(temperature * 100.0f);
 	      int t_int = t100 / 100;
-	      int t_dec = abs(t100 % 100);
+	      //int t_dec = abs(t100 % 100); //utilisée que pour le debug
 
 	      /*Pour le debug
 	      sprintf(buffert,
@@ -223,8 +229,7 @@ int main(void)
 
 	      // ===================== Filtrage numérique Temperature et Humidite =====================
 	      /* Un filtrage logiciel par moyenne glissante permet de supprimer le bruit des capteurs
-	      tout en conservant une information pertinente pour l’utilisateur,
-	      sans bloquer l’exécution du système. */
+	      tout en conservant une information pertinente pour l’utilisateur, sans bloquer l’exécution du système. */
 	      int t_filt = filter_update(&temp_filter, t_int);
 	      int h_filt = filter_update(&hum_filter, h_int);
 
@@ -243,6 +248,7 @@ int main(void)
 
 
 	      // ===================== Asservissement de la Ventilation en Automatique =====================
+	      // Le contrôle est actif seulement si on n'est pas sur la Page 4 (Mode Manuel)
 	      if (Var_page != 4)
 	      {
 	    	  if (temperature >= seuil_temperature)
@@ -260,17 +266,20 @@ int main(void)
 	    	  // Asservissement linéaire
 	    	  //Plus l'humidité est éloignée de sa consigne, plus la pompe tourne à haute vitesse
 	    	  //Plus l'humidité s'approche de sa valeur consigne, moins la pompe tourne
+
+	    	  // Calcul du ratio humidité courante / consigne pour la loi PWM
 	    	  float humidity_ratio = (float)humidity / seuil_humidite;
+
 	    	  // Application de l'équation de droite
-	    	  if (humidity_ratio <= x1)
+	    	  if (humidity_ratio <= x1) // Zone 1 : Besoin critique (100% PWM)
 	    	  {
 	    	      speed = 100;  // Vitesse max si humidity <= 0.55*seuil_humidite
 	    	  }
-	    	  else if (humidity_ratio <= x2)
+	    	  else if (humidity_ratio <= x2) // Zone 2 : Régulation douce (Approche)
 	    	  {
 	    	      speed = (uint8_t)(m * humidity_ratio + b);  // Rampe linéaire
 	    	  }
-	    	  else
+	    	  else // Zone 3 : Consigne atteinte
 	    	  {
 	    	      speed = 0;  // Pompe éteinte si humidity > 0.999*seuil_humidite
 	    	      Pump_Stop();
@@ -305,11 +314,18 @@ int main(void)
 	      lcd_curr.fan_on = Motor_IsOn();
 
 
+
+
+	      // ===================== Gestion de l'affichage (500ms) =====================
 	      // Boucle principale de l'affichage LCD
+
+	      // Le rafraîchissement est cadencé pour éviter les scintillements de l'écran
 	      if ((now - last_lcd_update) >= 500)   // 500 ms = confort visuel
 	          {
 	              last_lcd_update = now;
+
 	              // ===================== Mise à jour de l'écran LCD uniquement sur évênement =====================
+	              // On compare l'état actuel (lcd_curr) avec l'état précédent (lcd_prev)
 	              switch (Var_page)
 	              {
 	              case 1:
@@ -708,7 +724,8 @@ void LED_BLINK(uint32_t blink_period_ms)
 // Interruption
 void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin)
 {
-    // Anti-rebond simple
+    // Anti-rebond logiciel : On ignore les impulsions parasites < 200ms
+    // générées par le contact mécanique des bouton
     static uint32_t last_interrupt_time = 0;
     uint32_t now = HAL_GetTick();
     if (now - last_interrupt_time < 200) return;  // 200 ms debounce
@@ -730,20 +747,27 @@ void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin)
     }
 }
 
-/* Lecture d un canal ADC1 quelconque */
+/* Lecture d un canal ADC1 par polling */
+// Pas besoin d'interruption pour l'ADC car les mesures sont lentes (température et humidité)
 uint32_t ReadADC_Channel(uint32_t channel)
 {
     ADC_ChannelConfTypeDef sConfig = {0};
 
+    //Configuration du channel
     sConfig.Channel      = channel;
-    sConfig.Rank         = ADC_REGULAR_RANK_1;
-    sConfig.SamplingTime = ADC_SAMPLINGTIME_COMMON_1;
+    sConfig.Rank         = ADC_REGULAR_RANK_1; // Priorité 1
+    sConfig.SamplingTime = ADC_SAMPLINGTIME_COMMON_1; // Temps d'échantillonnage
 
+    // Application de la configuration sur ADC1
     HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 
+    // Conversion
     HAL_ADC_Start(&hadc1);
+
+    //Attente fin de conversion
     HAL_ADC_PollForConversion(&hadc1, 100);
 
+    //Retour de la valeur ADC lue
     return HAL_ADC_GetValue(&hadc1);
 }
 
