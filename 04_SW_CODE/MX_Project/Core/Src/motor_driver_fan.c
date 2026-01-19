@@ -12,7 +12,7 @@
 // Etat du moteur: OFF =0 et ON =1
 static uint8_t G_MotorState = 0;
 
-
+//Activation du ventilateur
 void Motor_On(void)
 {
     // Rotation du Moteur : IN1 = 1 et IN2 = 0
@@ -21,6 +21,7 @@ void Motor_On(void)
     G_MotorState = 1;
 }
 
+//Arrêt du ventilateur
 void Motor_Off(void)
 {
     // Arrêt du Moteur : IN1 = 0 et IN2 = 0
@@ -29,7 +30,7 @@ void Motor_Off(void)
     G_MotorState = 0;
 }
 
-
+//Retour sur l'état du ventilateur
 uint8_t Motor_IsOn(void)
 {
     return G_MotorState;

@@ -12,9 +12,8 @@ extern TIM_HandleTypeDef htim3;   // Timer utilisé pour PB5 (TIM3_CH2)
 
 static bool pump_state = false;   // Mémorise l'état de la pompe
 
-/**
- * @brief  Initialise la pompe : direction + PWM
- */
+
+//Initialisation de la pompe : direction + PWM
 void Pump_Init(void)
 {
     // IN4 = PB9 = direction -> LOW (sens normal)
@@ -27,9 +26,9 @@ void Pump_Init(void)
     pump_state = false;
 }
 
-/**
- * @brief  Définit la vitesse de la pompe en % (0-100)
- */
+
+//Définit la vitesse de la pompe en % (0-100)
+
 void Pump_SetSpeed(uint8_t duty)
 {
     if (duty > 100) duty = 100;
@@ -42,18 +41,16 @@ void Pump_SetSpeed(uint8_t duty)
     pump_state = (duty > 0);
 }
 
-/**
- * @brief  Arrête complètement la pompe
- */
+
+// Arrêt de la pompe
 void Pump_Stop(void)
 {
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
     pump_state = false;
 }
 
-/**
- * @brief  Retourne TRUE si la pompe tourne
- */
+
+//  Retourne TRUE si la pompe tourne
 bool Pump_IsOn(void)
 {
     return pump_state;
