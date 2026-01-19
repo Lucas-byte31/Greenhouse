@@ -398,7 +398,7 @@ int main(void)
 	            		  if (Pump_IsOn())		// si la pompe est déjà allumé on l'éteind
 	            			  Pump_Stop();
 	            		  else
-	            			  Pump_SetSpeed(99);   // // si la pompe est éteinte on l'allume à 99% PWM
+	            			  Pump_SetSpeed(100);   // // si la pompe est éteinte on l'allume à 100% PWM
 	            	  }
 
 	            	  lcd_page_4(&lcd_curr, &lcd_prev);
